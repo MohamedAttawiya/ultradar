@@ -34,6 +34,72 @@ if (navToggle && mainNav) {
   });
 })();
 
+// Country selector persistence & metadata
+const COUNTRY_OPTIONS = ['AE', 'SA', 'EG'];
+const COUNTRY_STORAGE_KEY = 'ultradar.country';
+const DEFAULT_COUNTRY = COUNTRY_OPTIONS[0];
+
+const sanitizeCountry = (value) => {
+  const code = (value || '').toUpperCase();
+  return COUNTRY_OPTIONS.includes(code) ? code : DEFAULT_COUNTRY;
+};
+
+const ensureCountryMeta = () => {
+  let meta = document.querySelector('meta[name="ultradar-country"]');
+  if (!meta) {
+    meta = document.createElement('meta');
+    meta.name = 'ultradar-country';
+    document.head.appendChild(meta);
+  }
+  return meta;
+};
+
+const applyCountry = (value) => {
+  const country = sanitizeCountry(value);
+  document.documentElement.setAttribute('data-country', country);
+  ensureCountryMeta().setAttribute('content', country);
+  return country;
+};
+
+const readStoredCountry = () => {
+  try {
+    return localStorage.getItem(COUNTRY_STORAGE_KEY);
+  } catch (_e) {
+    return null;
+  }
+};
+
+const writeStoredCountry = (country) => {
+  try {
+    localStorage.setItem(COUNTRY_STORAGE_KEY, country);
+  } catch (_e) {
+    // Storage might be unavailable (Safari private mode, etc.)
+  }
+};
+
+const initCountrySelector = (root = document) => {
+  const select = root.querySelector('#countrySelector');
+  if (!select) return;
+
+  const stored = sanitizeCountry(readStoredCountry());
+  select.value = stored;
+  applyCountry(stored);
+
+  select.addEventListener('change', (event) => {
+    const next = sanitizeCountry(event.target.value);
+    select.value = next;
+    applyCountry(next);
+    writeStoredCountry(next);
+    document.dispatchEvent(new CustomEvent('ultradar:countrychange', {
+      detail: { country: next }
+    }));
+  });
+};
+
+const initialCountry = applyCountry(sanitizeCountry(readStoredCountry()));
+writeStoredCountry(initialCountry);
+initCountrySelector(document);
+
 // js/main.js
 window.injectPartial = async function injectPartial(targetId, path){
   try {
@@ -50,6 +116,7 @@ window.injectPartial = async function injectPartial(targetId, path){
         navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
       });
     }
+    initCountrySelector(el);
   } catch (e){ console.error(e); }
 };
 window.highlightActive = function highlightActive(pathname){

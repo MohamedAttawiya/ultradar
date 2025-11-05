@@ -11,24 +11,36 @@
       />
     </a>
 
-    <!-- Mobile nav toggle -->
-    <button
-      class="nav__toggle"
-      id="navToggle"
-      aria-label="Toggle navigation"
-      aria-expanded="false"
-    >
-      <span class="nav__toggle-bar"></span>
-      <span class="nav__toggle-bar"></span>
-      <span class="nav__toggle-bar"></span>
-    </button>
+    <div class="topbar__actions">
+      <!-- Mobile nav toggle -->
+      <button
+        class="nav__toggle"
+        id="navToggle"
+        aria-label="Toggle navigation"
+        aria-expanded="false"
+      >
+        <span class="nav__toggle-bar"></span>
+        <span class="nav__toggle-bar"></span>
+        <span class="nav__toggle-bar"></span>
+      </button>
 
-    <!-- Main nav -->
-    <nav class="nav" id="mainNav" aria-label="Primary Navigation">
-      <a class="nav__link" href="../index.html">Home</a>
-      <a class="nav__link" href="../pages/marketplace-performance.html">S&amp;OP</a>
-      <a class="nav__link" href="../pages/last-mile.html">Last Mile</a>
-      <a class="nav__link" href="../pages/upload.html">Upload</a>
-    </nav>
+      <!-- Main nav -->
+      <nav class="nav" id="mainNav" aria-label="Primary Navigation">
+        <a class="nav__link" href="../index.html">Home</a>
+        <a class="nav__link" href="../pages/marketplace-performance.html">S&amp;OP</a>
+        <a class="nav__link" href="../pages/last-mile.html">Last Mile</a>
+        <a class="nav__link" href="../pages/upload.html">Upload</a>
+      </nav>
+
+      <!-- Country selector -->
+      <div class="country-switcher">
+        <label class="country-switcher__label" for="countrySelector">Country</label>
+        <select class="country-switcher__select" id="countrySelector" aria-label="Select country">
+          <option value="AE">AE</option>
+          <option value="SA">SA</option>
+          <option value="EG">EG</option>
+        </select>
+      </div>
+    </div>
   </div>
 </header>
