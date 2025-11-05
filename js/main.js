@@ -1,3 +1,18 @@
+// Helpers
+const normalizePath = (pathname) => {
+  if (!pathname) return '/';
+  return pathname.replace(/index\.html$/, '').replace(/\/+$/, '') || '/';
+};
+
+const resolvePath = (href, base = location.href) => {
+  try {
+    const url = new URL(href, base);
+    return normalizePath(url.pathname);
+  } catch (_e) {
+    return normalizePath(href);
+  }
+};
+
 // Mobile nav toggle
 const navToggle = document.getElementById('navToggle');
 const mainNav = document.getElementById('mainNav');
@@ -10,13 +25,10 @@ if (navToggle && mainNav) {
 }
 
 // Active link highlight (simple path-based match)
-(function highlightActive() {
-  const here = location.pathname.replace(/\/+$/, '');
-  document.querySelectorAll('.nav__link').forEach(a => {
-    const href = a.getAttribute('href') || '';
-    // normalize relative links
-    const normalized = href.startsWith('pages/') ? `/${href}` : href;
-    if (normalized === here || (here === '' && normalized === '/')) {
+(function highlightActiveOnLoad() {
+  const here = normalizePath(location.pathname);
+  document.querySelectorAll('.nav__link').forEach((a) => {
+    if (resolvePath(a.getAttribute('href')) === here) {
       a.classList.add('is-active');
     }
   });
@@ -41,9 +53,16 @@ window.injectPartial = async function injectPartial(targetId, path){
   } catch (e){ console.error(e); }
 };
 window.highlightActive = function highlightActive(pathname){
-  const a = document.querySelector(`a[href="${pathname}"]`);
-  if (a) a.classList.add('is-active');
+  const targetPath = resolvePath(pathname);
+  document.querySelectorAll('.nav__link').forEach((a) => {
+    if (resolvePath(a.getAttribute('href')) === targetPath) {
+      a.classList.add('is-active');
+    }
+  });
 };
 
 // Footer year
-document.getElementById('year').textContent = new Date().getFullYear();
+const yearEl = document.getElementById('year');
+if (yearEl) {
+  yearEl.textContent = new Date().getFullYear();
+}

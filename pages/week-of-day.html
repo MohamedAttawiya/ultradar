@@ -7,37 +7,52 @@
   <link rel="stylesheet" href="../css/styles.css" />
 </head>
 <body>
-  <header class="topbar">
-    <div class="topbar__inner">
-      <a class="brand" href="../index.html">
-        <img src="../assets/logo/ultradar-color-trans.png" alt="Ultradar Logo" class="brand__logo" width="206" height="50" />
-        <span class="brand__text">ultradar</span>
-      </a>
-      <button class="nav__toggle" id="navToggle" aria-label="Toggle navigation" aria-expanded="false">
-        <span class="nav__toggle-bar"></span><span class="nav__toggle-bar"></span><span class="nav__toggle-bar"></span>
-      </button>
-      <nav class="nav" id="mainNav" aria-label="Primary">
-        <a class="nav__link" href="../index.html">Home</a>
-        <a class="nav__link" href="./week-of-day.html">Week of Day</a>
-        <a class="nav__link" href="./slot-of-day.html">Slot of Day</a>
-        <a class="nav__link" href="./forecast.html">Forecast</a>
-        <a class="nav__link" href="./upload.html">Upload</a>
-      </nav>
-    </div>
-  </header>
+  <!-- Shared Header (injected) -->
+  <div id="site-header" role="banner"></div>
 
   <main class="container">
     <h1>Week of Day</h1>
     <p class="muted">Placeholder page. We’ll wire this to Athena/API next.</p>
   </main>
 
-  <footer class="footer">
-    <div class="footer__inner">
-      <span>© <span id="year"></span> Ultradar</span>
-      <span class="muted">eu-central-1 • store shapes MVP</span>
-    </div>
-  </footer>
+  <!-- Shared Footer (injected) -->
+  <div id="site-footer" role="contentinfo"></div>
 
+  <script>
+    // Fallbacks in case main.js hasn't loaded yet
+    window.injectPartial ||= async function injectPartial(targetId, path) {
+      try {
+        const el = document.getElementById(targetId);
+        if (!el) return;
+        const res = await fetch(path, { cache: 'no-cache' });
+        if (!res.ok) throw new Error('Failed to fetch ' + path);
+        el.innerHTML = await res.text();
+        const navToggle = document.getElementById('navToggle');
+        const mainNav = document.getElementById('mainNav');
+        if (navToggle && mainNav) {
+          navToggle.addEventListener('click', () => {
+            const open = mainNav.classList.toggle('is-open');
+            navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+          });
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    window.highlightActive ||= function highlightActive(pathname) {
+      const link = document.querySelector(`a[href="${pathname}"]`);
+      if (link) {
+        link.classList.add('is-active');
+      }
+    };
+  </script>
   <script src="../js/main.js"></script>
+  <script>
+    injectPartial('site-header', '../partials/header.html').then(() => {
+      highlightActive('../pages/s-op.html');
+    });
+    injectPartial('site-footer', '../partials/footer.html');
+  </script>
 </body>
 </html>
