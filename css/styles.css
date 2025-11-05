@@ -110,6 +110,7 @@ body{
   gap: 12px;
   padding: 12px 16px;
   overflow-x: auto;
+  justify-content: center;
 }
 
 .subnav__link{
