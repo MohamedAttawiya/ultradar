@@ -393,18 +393,17 @@
       }
 
       try {
-        const response = await fetch(
-          `/by-week?weeknum=${encodeURIComponent(sanitized)}&country=${encodeURIComponent(country)}`,
-          {
-            method: 'GET',
-            headers: {
-              Accept: 'application/json',
-              'X-Ultradar-Country': country
-            },
-            cache: 'no-cache',
-            signal: controller.signal
-          }
-        );
+        const apiUrl = new URL('https://zp97gyooxk.execute-api.eu-central-1.amazonaws.com/by-week');
+        apiUrl.searchParams.set('weeknum', sanitized);
+
+        const response = await fetch(apiUrl.toString(), {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json'
+          },
+          cache: 'no-cache',
+          signal: controller.signal
+        });
 
         if (!response.ok) {
           throw new Error(`Request failed with status ${response.status}`);
