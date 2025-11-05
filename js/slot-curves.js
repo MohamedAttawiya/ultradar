@@ -208,14 +208,7 @@
     const [hours, minutes] = start.split(':').map((part) => parseInt(part, 10));
     if (Number.isNaN(hours) || Number.isNaN(minutes)) return interval;
 
-    if (hours === 0 && minutes === 0) return 'Midnight';
-    if (hours === 12 && minutes === 0) return 'Noon';
-
-    const suffix = hours >= 12 ? 'PM' : 'AM';
-    const normalisedHour = ((hours + 11) % 12) + 1;
-    return `${normalisedHour.toString().padStart(2, '0')}:${minutes
-      .toString()
-      .padStart(2, '0')} ${suffix}`;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   };
 
   const ready = () => {
