@@ -289,7 +289,8 @@
 
         const intervalHead = document.createElement('th');
         intervalHead.scope = 'col';
-        intervalHead.textContent = 'Interval';
+        intervalHead.textContent = '';
+        intervalHead.setAttribute('aria-label', 'Time slot');
         headRow.appendChild(intervalHead);
 
         days.forEach((day) => {
@@ -334,15 +335,9 @@
               `${readableDay} ${readableInterval}: ${percentLabel} of daily demand`
             );
             cell.title = `${readableDay} ${readableInterval}: ${percentLabel} of daily demand`;
+            td.title = cell.title;
 
-            if (value > 0) {
-              const span = document.createElement('span');
-              span.textContent = percentLabel;
-              cell.appendChild(span);
-            } else {
-              cell.innerHTML = '<span>—</span>';
-            }
-
+            cell.setAttribute('aria-hidden', 'true');
             td.appendChild(cell);
             row.appendChild(td);
           });
