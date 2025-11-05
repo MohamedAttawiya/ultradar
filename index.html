@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ultradar — Home</title>
+  <link rel="preload" href="assets/logo/amazon-now-color.png" as="image">
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- Shared Header (injected) -->
+  <div id="site-header" role="banner"></div>
+
+  <!-- Page Content -->
+  <main class="container">
+    <section class="hero">
+      <h1>Slot Curves & Forecasting</h1>
+      <p class="muted">
+        Drop daily CSVs, get normalized time-slot curves. Browse by day, slot, or run forecasts.
+      </p>
+      <div class="cta-row">
+        <a class="btn" href="pages/week-of-day.html">Explore Week of Day</a>
+        <a class="btn btn--secondary" href="pages/slot-of-day.html">View Slot of Day</a>
+      </div>
+    </section>
+
+    <section class="grid">
+      <a class="tile" href="pages/forecast.html">
+        <div class="tile__head">Forecast</div>
+        <p class="tile__body">Serve API-ready curves and totals, ready for charts.</p>
+      </a>
+      <a class="tile" href="pages/upload.html">
+        <div class="tile__head">Upload</div>
+        <p class="tile__body">Send CSVs to S3 <code>raw/</code>; Lambda does the rest.</p>
+      </a>
+      <a class="tile" href="pages/week-of-day.html">
+        <div class="tile__head">Week of Day</div>
+        <p class="tile__body">Compare shape curves across days of week.</p>
+      </a>
+      <a class="tile" href="pages/slot-of-day.html">
+        <div class="tile__head">Slot of Day</div>
+        <p class="tile__body">Drill into a specific time slot across stores.</p>
+      </a>
+    </section>
+  </main>
+
+  <!-- Shared Footer (injected) -->
+  <div id="site-footer" role="contentinfo"></div>
+
+  <!-- Scripts -->
+  <script src="js/main.js"></script>
+  <script>
+    // Lightweight HTML partial loader for header/footer
+    async function injectPartial(targetId, path) {
+      try {
+        const el = document.getElementById(targetId);
+        if (!el) return;
+        const res = await fetch(path, { cache: 'no-cache' });
+        if (!res.ok) throw new Error('Failed to fetch ' + path);
+        el.innerHTML = await res.text();
+
+        // After header loads, (re)bind mobile nav toggle if present
+        const navToggle = document.getElementById('navToggle');
+        const mainNav = document.getElementById('mainNav');
+        if (navToggle && mainNav) {
+          navToggle.addEventListener('click', () => {
+            const open = mainNav.classList.toggle('is-open');
+            navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+          });
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // Inject shared header/footer
+    injectPartial('site-header', 'partials/header.html');
+    injectPartial('site-footer', 'partials/footer.html');
+  </script>
+</body>
+</html>

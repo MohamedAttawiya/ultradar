@@ -1,0 +1,23 @@
+<footer class="footer">
+  <div class="footer__inner">
+    <div class="footer__left">
+      <img
+        src="../assets/logo/amazon-now-color.png"
+        alt="Amazon Now / Ultradar Logo"
+        class="footer__logo"
+        width="120"
+        height="28"
+      />
+    </div>
+
+    <div class="footer__right">
+      <span>© <span id="year"></span> Ultradar</span>
+      <span class="muted">eu-central-1 • Store Shapes MVP</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // simple footer year update (avoids repeating code)
+  document.getElementById('year').textContent = new Date().getFullYear();
+</script>

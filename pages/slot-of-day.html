@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ultradar — Slot of Day</title>
+  <link rel="stylesheet" href="../css/styles.css" />
+  <link rel="preload" href="../assets/logo/ultradar-color-trans.png" as="image">
+</head>
+<body>
+  <!-- Shared Header (injected) -->
+  <div id="site-header" role="banner"></div>
+
+  <main class="container">
+    <h1>Slot of Day</h1>
+    <p class="muted">Pick a day to plot each store’s slot shape (x: time interval, y: % of day).</p>
+
+    <!-- Controls -->
+    <section class="panel" style="margin-top:14px;">
+      <div class="controls">
+        <label class="control">
+          <span class="control__label">Date</span>
+          <input id="dateInput" type="date" required class="control__input" />
+        </label>
+        <button class="btn" id="plotBtn" type="button">Plot</button>
+        <button class="btn btn--secondary" id="downloadBtn" type="button" title="Download JSON">Download</button>
+      </div>
+      <div id="errorBox" class="error-box" hidden></div>
+    </section>
+
+    <!-- Chart -->
+    <section style="margin-top:18px;">
+      <div id="summary" class="muted"></div>
+      <div class="card" style="padding:12px;">
+        <canvas id="curvesChart" height="120"></canvas>
+      </div>
+    </section>
+  </main>
+
+  <div id="site-footer" role="contentinfo"></div>
+
+  <script>
+    // API base for this page
+    window.ULTRADAR_API_BASE = "https://zp97gyooxk.execute-api.eu-central-1.amazonaws.com";
+
+    // Fallback: define injectPartial/highlightActive if main.js isn't loaded yet
+    window.injectPartial ||= async function injectPartial(targetId, path) {
+      try {
+        const el = document.getElementById(targetId);
+        if (!el) return;
+        const res = await fetch(path, { cache: 'no-cache' });
+        if (!res.ok) throw new Error('Failed to fetch ' + path);
+        el.innerHTML = await res.text();
+        const navToggle = document.getElementById('navToggle');
+        const mainNav = document.getElementById('mainNav');
+        if (navToggle && mainNav) {
+          navToggle.addEventListener('click', () => {
+            const open = mainNav.classList.toggle('is-open');
+            navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+          });
+        }
+      } catch (e) { console.error(e); }
+    };
+    window.highlightActive ||= function highlightActive(pathname) {
+      const a = document.querySelector(`a[href="${pathname}"]`);
+      if (a) a.classList.add('is-active');
+    };
+  </script>
+
+  <!-- Shared scripts -->
+  <script src="../js/main.js"></script>
+  <script>
+    injectPartial('site-header', '../partials/header.html').then(() => {
+      highlightActive('/pages/slot-of-day.html');
+    });
+    injectPartial('site-footer', '../partials/footer.html');
+  </script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- Page logic -->
+  <script src="../js/slot-of-day.js"></script>
+</body>
+</html>
