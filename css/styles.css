@@ -97,6 +97,45 @@ body{
   padding: 28px 16px 48px;
 }
 
+.subnav{
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  box-shadow: inset 0 -1px 0 rgba(15,23,42,0.04);
+}
+
+.subnav__inner{
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  overflow-x: auto;
+}
+
+.subnav__link{
+  flex: 0 0 auto;
+  text-decoration: none;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  transition: color .15s ease, background .15s ease, border-color .15s ease;
+}
+
+.subnav__link:hover{
+  color: var(--accent);
+  background: rgba(37,99,235,0.06);
+  border-color: rgba(37,99,235,0.14);
+}
+
+.subnav__link.is-active{
+  color: var(--accent);
+  background: rgba(37,99,235,0.12);
+  border-color: rgba(37,99,235,0.4);
+}
+
 .hero h1{
   margin: 0 0 8px 0;
   font-size: clamp(1.6rem, 2.5vw + 1rem, 2.3rem);
