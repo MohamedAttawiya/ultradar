@@ -1,13 +1,26 @@
 (function () {
   const DAY_ORDER = [
+    'Sunday',
     'Monday',
     'Tuesday',
     'Wednesday',
     'Thursday',
     'Friday',
-    'Saturday',
-    'Sunday'
+    'Saturday'
   ];
+
+  const HEATMAP_STOPS = [
+    { stop: 0, r: 34, g: 197, b: 94 }, // emerald 500
+    { stop: 0.5, r: 250, g: 204, b: 21 }, // amber 400
+    { stop: 1, r: 220, g: 38, b: 38 } // red 600
+  ];
+
+  const clamp = (value, min, max) => {
+    if (!Number.isFinite(value)) return min;
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
+  };
 
   const sanitizeWeek = (value) => {
     const num = Number(value);
@@ -51,23 +64,85 @@
     return `${pct.toFixed(pct >= 10 ? 1 : 2)}%`;
   };
 
+  const interpolateChannel = (start, end, amount) => {
+    return Math.round(start + (end - start) * amount);
+  };
+
+  const toRgbString = ({ r, g, b }) => `rgb(${r}, ${g}, ${b})`;
+
+  const relativeLuminance = ({ r, g, b }) => {
+    const toLinear = (channel) => {
+      const c = channel / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+  };
+
   const colorForValue = (value, max) => {
-    if (!max || max <= 0 || !Number.isFinite(value)) {
-      return { background: '#f8fafc', ink: 'var(--ink)' };
+    if (!max || max <= 0 || !Number.isFinite(value) || value <= 0) {
+      return { background: '#f8fafc', ink: 'var(--muted)' };
     }
-    const ratio = Math.max(0, Math.min(1, value / max));
-    const hue = 214 - ratio * 34; // blue to indigo shift
-    const saturation = 50 + ratio * 40;
-    const lightness = 94 - ratio * 50;
-    const background = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-    const ink = ratio > 0.6 ? '#ffffff' : 'var(--ink)';
-    return { background, ink };
+
+    const ratio = clamp(value / max, 0, 1);
+    let start = HEATMAP_STOPS[0];
+    let end = HEATMAP_STOPS[HEATMAP_STOPS.length - 1];
+
+    for (let i = 0; i < HEATMAP_STOPS.length - 1; i += 1) {
+      const current = HEATMAP_STOPS[i];
+      const next = HEATMAP_STOPS[i + 1];
+      if (ratio >= current.stop && ratio <= next.stop) {
+        start = current;
+        end = next;
+        break;
+      }
+    }
+
+    const span = end.stop - start.stop || 1;
+    const segmentRatio = clamp((ratio - start.stop) / span, 0, 1);
+    const color = {
+      r: interpolateChannel(start.r, end.r, segmentRatio),
+      g: interpolateChannel(start.g, end.g, segmentRatio),
+      b: interpolateChannel(start.b, end.b, segmentRatio)
+    };
+
+    const luminance = relativeLuminance(color);
+    const ink = luminance < 0.45 ? '#f8fafc' : '#0f172a';
+
+    return { background: toRgbString(color), ink };
   };
 
   const normalisePayload = (payload) => {
     if (!payload) return [];
     if (Array.isArray(payload)) return payload;
+
+    if (typeof payload === 'string') {
+      try {
+        const parsed = JSON.parse(payload);
+        return normalisePayload(parsed);
+      } catch (_err) {
+        return [];
+      }
+    }
+
+    if (payload.body) {
+      if (Array.isArray(payload.body)) {
+        return payload.body;
+      }
+      if (typeof payload.body === 'string') {
+        try {
+          const parsed = JSON.parse(payload.body);
+          return normalisePayload(parsed);
+        } catch (_err) {
+          return [];
+        }
+      }
+    }
+
     if (Array.isArray(payload.data)) return payload.data;
+    if (Array.isArray(payload.records)) return payload.records;
+    if (Array.isArray(payload.items)) return payload.items;
+    if (payload.result && Array.isArray(payload.result)) return payload.result;
+
     if (typeof payload === 'object') return [payload];
     return [];
   };
@@ -114,7 +189,33 @@
       entries
     }));
 
+    stores.sort((a, b) => a.storeName.localeCompare(b.storeName, undefined, { sensitivity: 'base' }));
+
     return { stores, intervals, days };
+  };
+
+  const formatDayLabel = (day) => {
+    if (!day) return '—';
+    const trimmed = day.trim();
+    if (trimmed.length <= 3) return trimmed.toUpperCase();
+    return trimmed.slice(0, 3).toUpperCase();
+  };
+
+  const formatIntervalLabel = (interval) => {
+    if (!interval) return '—';
+    const [start] = interval.split(' - ');
+    if (!start) return interval;
+    const [hours, minutes] = start.split(':').map((part) => parseInt(part, 10));
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return interval;
+
+    if (hours === 0 && minutes === 0) return 'Midnight';
+    if (hours === 12 && minutes === 0) return 'Noon';
+
+    const suffix = hours >= 12 ? 'PM' : 'AM';
+    const normalisedHour = ((hours + 11) % 12) + 1;
+    return `${normalisedHour.toString().padStart(2, '0')}:${minutes
+      .toString()
+      .padStart(2, '0')} ${suffix}`;
   };
 
   const ready = () => {
@@ -149,13 +250,13 @@
 
     const renderHeatmaps = (groups, intervals, days, context) => {
       clearHeatmaps();
-      if (!legend) return;
+      if (legend) {
+        legend.hidden = !(groups.length && intervals.length && days.length);
+        legend.setAttribute('aria-hidden', legend.hidden ? 'true' : 'false');
+      }
       if (!groups.length || !intervals.length || !days.length) {
-        legend.hidden = true;
         return;
       }
-
-      legend.hidden = false;
 
       let globalMax = 0;
       groups.forEach(({ entries }) => {
@@ -180,7 +281,7 @@
 
         const subtitle = document.createElement('p');
         subtitle.className = 'heatmap-card__subtitle';
-        subtitle.textContent = `Week ${context.week} • ${context.country}`;
+        subtitle.textContent = `Week ${context.week} · ${context.country}`;
         card.appendChild(subtitle);
 
         const tableWrap = document.createElement('div');
@@ -201,7 +302,8 @@
         days.forEach((day) => {
           const th = document.createElement('th');
           th.scope = 'col';
-          th.textContent = day;
+          th.textContent = formatDayLabel(day);
+          th.title = day;
           headRow.appendChild(th);
         });
 
@@ -218,7 +320,8 @@
           const row = document.createElement('tr');
           const rowHeader = document.createElement('th');
           rowHeader.scope = 'row';
-          rowHeader.textContent = interval || '—';
+          rowHeader.textContent = formatIntervalLabel(interval);
+          rowHeader.title = interval || '';
           row.appendChild(rowHeader);
 
           days.forEach((day) => {
@@ -230,9 +333,22 @@
             cell.className = 'heatmap-cell';
             cell.style.setProperty('--cell-color', background);
             cell.style.setProperty('--cell-ink', ink);
-            cell.title = `${day} ${interval || ''}: ${formatPercent(value)} of daily demand`;
-            cell.setAttribute('role', 'presentation');
-            cell.textContent = formatPercent(value);
+            const readableDay = day || 'Unknown day';
+            const readableInterval = interval || 'Unknown interval';
+            const percentLabel = formatPercent(value);
+            td.setAttribute(
+              'aria-label',
+              `${readableDay} ${readableInterval}: ${percentLabel} of daily demand`
+            );
+            cell.title = `${readableDay} ${readableInterval}: ${percentLabel} of daily demand`;
+
+            if (value > 0) {
+              const span = document.createElement('span');
+              span.textContent = percentLabel;
+              cell.appendChild(span);
+            } else {
+              cell.innerHTML = '<span>—</span>';
+            }
 
             td.appendChild(cell);
             row.appendChild(td);
@@ -255,7 +371,10 @@
       if (!sanitized) {
         setStatus('Enter a week number between 1 and 53.', 'error');
         clearHeatmaps();
-        if (legend) legend.hidden = true;
+        if (legend) {
+          legend.hidden = true;
+          legend.setAttribute('aria-hidden', 'true');
+        }
         return;
       }
 
@@ -274,26 +393,39 @@
       }
 
       try {
-        const response = await fetch(`/by-week?weeknum=${encodeURIComponent(sanitized)}`, {
-          method: 'GET',
-          headers: {
-            Accept: 'application/json',
-            'X-Ultradar-Country': country
-          },
-          cache: 'no-cache',
-          signal: controller.signal
-        });
+        const response = await fetch(
+          `/by-week?weeknum=${encodeURIComponent(sanitized)}&country=${encodeURIComponent(country)}`,
+          {
+            method: 'GET',
+            headers: {
+              Accept: 'application/json',
+              'X-Ultradar-Country': country
+            },
+            cache: 'no-cache',
+            signal: controller.signal
+          }
+        );
 
         if (!response.ok) {
           throw new Error(`Request failed with status ${response.status}`);
         }
 
-        const payload = await response.json();
+        const raw = await response.text();
+        let payload;
+        try {
+          payload = raw ? JSON.parse(raw) : [];
+        } catch (parseError) {
+          console.error('Failed to parse /by-week response', parseError);
+          throw new Error('The /by-week API did not return valid JSON.');
+        }
         const records = normalisePayload(payload);
 
         if (!records.length) {
           clearHeatmaps();
-          if (legend) legend.hidden = true;
+          if (legend) {
+            legend.hidden = true;
+            legend.setAttribute('aria-hidden', 'true');
+          }
           setStatus(`No slot curve data returned for week ${sanitized} in ${country}.`, 'error');
           return;
         }
@@ -302,21 +434,31 @@
 
         if (!stores.length) {
           clearHeatmaps();
-          if (legend) legend.hidden = true;
+          if (legend) {
+            legend.hidden = true;
+            legend.setAttribute('aria-hidden', 'true');
+          }
           setStatus(`No slot curve data available for week ${sanitized}.`, 'error');
           return;
         }
 
         renderHeatmaps(stores, intervals, days, { week: sanitized, country });
-        setStatus(`Loaded ${stores.length} store${stores.length === 1 ? '' : 's'} for week ${sanitized} (${country}).`, 'success');
+        setStatus(
+          `Loaded ${stores.length} store${stores.length === 1 ? '' : 's'} for week ${sanitized} (${country}).`,
+          'success'
+        );
       } catch (error) {
         if (error.name === 'AbortError') {
           return;
         }
         console.error('Failed to load slot curves', error);
         clearHeatmaps();
-        if (legend) legend.hidden = true;
-        setStatus('We could not load slot curve data. Please try again.', 'error');
+        if (legend) {
+          legend.hidden = true;
+          legend.setAttribute('aria-hidden', 'true');
+        }
+        const friendly = error?.message || 'Unexpected error.';
+        setStatus(`We could not load slot curve data. ${friendly}`, 'error');
       }
     };
 
@@ -327,7 +469,7 @@
 
     const currentWeek = sanitizeWeek(weekInput.value) || getCurrentISOWeek();
     weekInput.value = currentWeek;
-    loadWeek(currentWeek, { silent: true });
+    loadWeek(currentWeek);
 
     document.addEventListener('ultradar:countrychange', (event) => {
       const nextCountry = event?.detail?.country;
