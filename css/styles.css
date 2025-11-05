@@ -36,6 +36,13 @@ body{
   gap: 16px;
   padding: 10px 16px;
 }
+.topbar__actions{
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
 .brand{
   display: inline-flex;
   align-items: center;
@@ -56,7 +63,6 @@ body{
 
 /* Nav */
 .nav{
-  margin-left: auto;
   display: flex;
   gap: 8px;
 }
@@ -78,7 +84,6 @@ body{
   display: none;
   background: transparent;
   border: none;
-  margin-left: auto;
   cursor: pointer;
 }
 .nav__toggle-bar{
@@ -90,11 +95,80 @@ body{
   border-radius: 2px;
 }
 
+.country-switcher{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.country-switcher__label{
+  font-weight: 600;
+}
+
+.country-switcher__select{
+  appearance: none;
+  padding: 6px 28px 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.9rem;
+  background: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8" fill="none"%3E%3Cpath d="M1 1.5L6 6.5L11 1.5" stroke="%230f172a" stroke-width="1.5" stroke-linecap="round"/%3E%3C/svg%3E') no-repeat right 10px center / 12px 8px, #fff;
+  color: var(--ink);
+  min-width: 92px;
+}
+
+.country-switcher__select:focus{
+  outline: none;
+  border-color: rgba(37,99,235,0.4);
+  box-shadow: 0 0 0 2px rgba(37,99,235,0.18);
+}
+
 /* Layout */
 .container{
   max-width: 1100px;
   margin: 0 auto;
   padding: 28px 16px 48px;
+}
+
+.subnav{
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  box-shadow: inset 0 -1px 0 rgba(15,23,42,0.04);
+}
+
+.subnav__inner{
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  overflow-x: auto;
+  justify-content: center;
+}
+
+.subnav__link{
+  flex: 0 0 auto;
+  text-decoration: none;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  transition: color .15s ease, background .15s ease, border-color .15s ease;
+}
+
+.subnav__link:hover{
+  color: var(--accent);
+  background: rgba(37,99,235,0.06);
+  border-color: rgba(37,99,235,0.14);
+}
+
+.subnav__link.is-active{
+  color: var(--accent);
+  background: rgba(37,99,235,0.12);
+  border-color: rgba(37,99,235,0.4);
 }
 
 .hero h1{
@@ -185,6 +259,12 @@ body{
     border-radius: 12px;
     box-shadow: var(--shadow);
   }
+  .topbar__actions{ gap: 12px; }
+}
+@media (max-width: 640px){
+  .topbar__actions{ gap: 8px; }
+  .country-switcher__label{ display: none; }
+  .country-switcher__select{ min-width: 72px; padding-right: 24px; }
 }
 .container { padding: 24px 16px 32px; }
 .footer { margin-top: 24px; }
@@ -202,10 +282,48 @@ body{
 }
 
 .panel { border:1px solid var(--border); border-radius: var(--radius); padding:14px; background: var(--bg); }
+.panel__intro { display:flex; flex-direction:column; gap:8px; }
+.panel__intro + .slotcurves-controls { margin-top:18px; }
 .controls { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; }
 .control { display:flex; flex-direction:column; gap:6px; }
 .control__label { font-size:.9rem; color:var(--muted); }
 .control__input { padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:#fff; min-width:220px; }
+
+.slotcurves-controls .btn { align-self:flex-start; }
+.heatmap-legend { display:flex; align-items:center; gap:12px; margin-top:18px; }
+.heatmap-legend__label { font-size:.8rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+.heatmap-legend__gradient { flex:1; height:12px; border-radius:999px; background:linear-gradient(90deg, #f1f5f9 0%, #3b82f6 100%); box-shadow:inset 0 0 0 1px rgba(15,23,42,0.08); }
+.status-message { margin-top:16px; font-size:.9rem; color:var(--muted); display:none; }
+.status-message[data-state] { display:block; }
+.status-message[data-state="loading"] { color:var(--accent); }
+.status-message[data-state="error"] { color:#b91c1c; }
+.status-message[data-state="success"] { color:var(--ink); }
+
+.store-heatmaps { margin-top:20px; display:grid; gap:18px; grid-template-columns:repeat(3, minmax(0, 1fr)); }
+.heatmap-card { border:1px solid var(--border); border-radius:var(--radius); padding:16px; box-shadow:var(--shadow); background:var(--bg); display:flex; flex-direction:column; gap:12px; }
+.heatmap-card__title { margin:0; font-size:1rem; display:flex; align-items:center; justify-content:space-between; }
+.heatmap-card__subtitle { margin:0; font-size:.8rem; color:var(--muted); }
+.heatmap-card__body { overflow:auto; border-radius:12px; border:1px solid rgba(15,23,42,0.08); }
+.heatmap-table { width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed; font-size:.8rem; }
+.heatmap-table thead th { background:var(--surface); padding:8px 6px; font-weight:600; text-align:center; font-size:.7rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); border-bottom:1px solid var(--border); }
+.heatmap-table thead th:first-child { text-align:left; position:sticky; left:0; z-index:2; }
+.heatmap-table tbody th { background:var(--surface); padding:10px 8px; font-weight:600; text-align:left; color:var(--muted); border-bottom:1px solid var(--border); position:sticky; left:0; z-index:1; }
+.heatmap-table tbody tr:last-child th { border-bottom:none; }
+.heatmap-table tbody td { padding:0; border-bottom:1px solid var(--border); border-left:1px solid rgba(15,23,42,0.06); }
+.heatmap-table tbody tr:last-child td { border-bottom:none; }
+.heatmap-cell { display:flex; align-items:center; justify-content:center; padding:10px 4px; font-weight:600; background:var(--cell-color, #f8fafc); color:var(--cell-ink, var(--ink)); transition:background .2s ease, color .2s ease; }
+.heatmap-cell small { font-weight:500; font-size:.7rem; opacity:.8; }
+
+@media (max-width: 1200px){
+  .store-heatmaps { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 720px){
+  .store-heatmaps { grid-template-columns:repeat(1, minmax(0, 1fr)); }
+  .heatmap-table thead th:first-child,
+  .heatmap-table tbody th { position:static; }
+  .heatmap-card__body { overflow-x:auto; }
+}
 
 .table-wrap { overflow:auto; border:1px solid var(--border); border-radius: var(--radius); }
 .table { width:100%; border-collapse:separate; border-spacing:0; }
