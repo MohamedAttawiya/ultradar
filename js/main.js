@@ -119,14 +119,23 @@ window.injectPartial = async function injectPartial(targetId, path){
     initCountrySelector(el);
   } catch (e){ console.error(e); }
 };
-window.highlightActive = function highlightActive(pathname){
+
+window.highlightActive = function highlightActive(pathname, rootSelectorOrEl = document, linkSelector = '.nav__link') {
   const targetPath = resolvePath(pathname);
-  document.querySelectorAll('.nav__link').forEach((a) => {
+  const root = (typeof rootSelectorOrEl === 'string') ? document.querySelector(rootSelectorOrEl) : (rootSelectorOrEl || document);
+  if (!root) return;
+
+  root.querySelectorAll(linkSelector).forEach((a) => {
     if (resolvePath(a.getAttribute('href')) === targetPath) {
       a.classList.add('is-active');
+      a.setAttribute('aria-current', 'page');
+    } else {
+      a.classList.remove('is-active');
+      a.removeAttribute('aria-current');
     }
   });
 };
+
 
 // Footer year
 const yearEl = document.getElementById('year');

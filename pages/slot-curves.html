@@ -9,20 +9,10 @@
 <body>
   <div id="site-header" role="banner"></div>
 
-  <nav class="subnav subnav--sop" aria-label="S&amp;OP quick links">
-    <div class="subnav__inner">
-      <a class="subnav__link" href="../pages/marketplace-performance.html">Marketplace Performance</a>
-      <a class="subnav__link" href="../pages/store-performance.html">Store Performance</a>
-      <a class="subnav__link is-active" href="../pages/slot-curves.html">Slot Curves</a>
-      <a class="subnav__link" href="../pages/strategies.html">Strategies</a>
-      <a class="subnav__link" href="../pages/order-forecast.html">Order Forecast</a>
-      <a class="subnav__link" href="../pages/da-forecast.html">DA Forecast</a>
-    </div>
-  </nav>
+  <!-- S&OP subnav (partial host) -->
+  <div id="sopSubnavHost" class="subnav-host"></div>
 
   <main class="container">
-    </section>
-
     <section class="panel slotcurves-panel" aria-labelledby="slotCurvesTitle">
       <div class="panel__intro">
         <h2 id="slotCurvesTitle">Slot Curve Heatmaps</h2>
@@ -66,15 +56,15 @@
 
   <div id="site-footer" role="contentinfo"></div>
 
+  <!-- Fallback shims (define only if main.js not loaded yet) -->
   <script>
+    // country fallback (kept as-is)
     const fallbackCountries = ['AE', 'SA', 'EG'];
     const fallbackDefaultCountry = fallbackCountries[0];
-
     const fallbackSanitizeCountry = (value) => {
       const code = (value || '').toUpperCase();
       return fallbackCountries.includes(code) ? code : fallbackDefaultCountry;
     };
-
     const fallbackEnsureMeta = () => {
       let meta = document.querySelector('meta[name="ultradar-country"]');
       if (!meta) {
@@ -84,33 +74,16 @@
       }
       return meta;
     };
-
     const fallbackApplyCountry = (value) => {
       const code = fallbackSanitizeCountry(value);
       document.documentElement.setAttribute('data-country', code);
       fallbackEnsureMeta().setAttribute('content', code);
       return code;
     };
-
-    const fallbackReadCountry = () => {
-      try {
-        return localStorage.getItem('ultradar.country');
-      } catch (_e) {
-        return null;
-      }
-    };
-
-    const fallbackWriteCountry = (code) => {
-      try {
-        localStorage.setItem('ultradar.country', code);
-      } catch (_e) {
-        // ignore storage errors in fallback mode
-      }
-    };
-
+    const fallbackReadCountry = () => { try { return localStorage.getItem('ultradar.country'); } catch { return null; } };
+    const fallbackWriteCountry = (code) => { try { localStorage.setItem('ultradar.country', code); } catch {} };
     const fallbackInitialCountry = fallbackApplyCountry(fallbackReadCountry());
     fallbackWriteCountry(fallbackInitialCountry);
-
     function fallbackInitCountrySelector(root = document) {
       const select = root.querySelector('#countrySelector');
       if (!select) return;
@@ -122,12 +95,11 @@
         select.value = next;
         fallbackApplyCountry(next);
         fallbackWriteCountry(next);
-        document.dispatchEvent(new CustomEvent('ultradar:countrychange', {
-          detail: { country: next }
-        }));
+        document.dispatchEvent(new CustomEvent('ultradar:countrychange', { detail: { country: next } }));
       });
     }
 
+    // partial + highlight fallbacks (only if not provided by main.js)
     window.injectPartial ||= async function injectPartial(targetId, path) {
       try {
         const el = document.getElementById(targetId);
@@ -144,23 +116,33 @@
           });
         }
         fallbackInitCountrySelector(el);
-      } catch (e) {
-        console.error(e);
-      }
+      } catch (e) { console.error(e); }
     };
 
-    window.highlightActive ||= function highlightActive(pathname) {
-      const link = document.querySelector(`a[href="${pathname}"]`);
-      if (link) {
-        link.classList.add('is-active');
-      }
+    window.highlightActive ||= function highlightActive(pathname, rootSel = document, linkSel = 'a') {
+      const root = (typeof rootSel === 'string') ? document.querySelector(rootSel) : (rootSel || document);
+      if (!root) return;
+      root.querySelectorAll(linkSel).forEach(a => {
+        if (a.getAttribute('href') === pathname) {
+          a.classList.add('is-active');
+          a.setAttribute('aria-current', 'page');
+        }
+      });
     };
   </script>
+
+  <!-- Your app scripts -->
   <script src="../js/main.js"></script>
   <script src="../js/slot-curves.js"></script>
+
+  <!-- Now that main.js is loaded, inject partials and mark active pills -->
   <script>
     injectPartial('site-header', '../partials/header.html').then(() => {
-      highlightActive('../pages/marketplace-performance.html');
+      // top nav is auto-highlighted by main.js (path-based); no manual call needed
+    });
+    injectPartial('sopSubnavHost', '../partials/sop-subnav.html').then(() => {
+      // highlight the Strategies/Slot Curves pill inside the subnav host
+      highlightActive(location.pathname, '#sopSubnavHost', '.subnav__link');
     });
     injectPartial('site-footer', '../partials/footer.html');
   </script>

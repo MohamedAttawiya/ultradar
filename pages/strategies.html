@@ -5,136 +5,176 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Ultradar — Strategies</title>
   <link rel="stylesheet" href="../css/styles.css" />
+  <link rel="stylesheet" href="../css/strategies.css" />
 </head>
 <body>
+  <!-- Injected header -->
   <div id="site-header" role="banner"></div>
 
-  <nav class="subnav subnav--sop" aria-label="S&amp;OP quick links">
-    <div class="subnav__inner">
-      <a class="subnav__link" href="../pages/marketplace-performance.html">Marketplace Performance</a>
-      <a class="subnav__link" href="../pages/store-performance.html">Store Performance</a>
-      <a class="subnav__link" href="../pages/slot-curves.html">Slot Curves</a>
-      <a class="subnav__link is-active" href="../pages/strategies.html">Strategies</a>
-      <a class="subnav__link" href="../pages/order-forecast.html">Order Forecast</a>
-      <a class="subnav__link" href="../pages/da-forecast.html">DA Forecast</a>
-    </div>
-  </nav>
+  <!-- Injected S&OP subnav -->
+  <div id="sopSubnavHost" class="subnav-host"></div>
 
   <main class="container">
-    <section class="hero">
-      <h1>Strategies</h1>
-      <p class="muted">
-        Align leadership on mitigation paths, long-range bets, and roadmaps born out of the S&amp;OP rhythm.
-      </p>
-      <div class="cta-row">
-        <a class="btn" href="../pages/s-op.html">Back to S&amp;OP Hub</a>
-      </div>
-    </section>
 
-    <section class="panel" style="margin-top:32px;">
-      <h2 style="margin-top:0;">Coming Soon</h2>
-      <p class="muted">
-        Strategic narratives, executive scorecards, and readiness reviews will surface in this space.
-      </p>
+    <!-- Outer panel (same geometry as Slot Curves) -->
+    <section class="panel strategy-shell" aria-labelledby="strategiesTitle">
+  <div class="strategy-layout">
+    <!-- Sidebar -->
+    <aside class="strategy-sidebar" aria-label="Strategy navigation">
+      <ul class="strategy-list" role="tablist">
+        <li><a href="#edit"       class="strategy-link is-active" data-view="edit"       role="tab" aria-selected="true">Edit Strategy</a></li>
+        <li><a href="#create"     class="strategy-link"           data-view="create"     role="tab" aria-selected="false">Create Strategy</a></li>
+        <li><a href="#exclusions" class="strategy-link"           data-view="exclusions" role="tab" aria-selected="false">Exclusions</a></li>
+      </ul>
+    </aside>
+
+        <!-- Content -->
+            <section class="strategy-content panel">
+          <!-- EDIT -->
+            <div class="strategy-view" data-view="edit" data-state="active" role="tabpanel" aria-labelledby="edit">
+            <h3 style="margin:0 0 8px;">Edit Strategy</h3>
+            <p class="muted" style="margin:0 0 10px;">Search and modify existing strategies. Wire your table and form here.</p>
+
+            <div class="controls" style="margin:10px 0 12px;">
+              <label class="control">
+                <span class="control__label">Search</span>
+                <input class="control__input" type="text" placeholder="Search by name…">
+              </label>
+              <label class="control">
+                <span class="control__label">Status</span>
+                <select class="control__input">
+                  <option value="">All statuses</option>
+                  <option value="active">Active</option>
+                  <option value="draft">Draft</option>
+                  <option value="archived">Archived</option>
+                </select>
+              </label>
+              <button class="btn" type="button">Apply</button>
+            </div>
+
+            <div class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>LW / LW-1 / LW-2</th>
+                    <th>Shape Params</th>
+                    <th>Last Updated</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Default Week Mix</td>
+                    <td>0.6 / 0.3 / 0.1</td>
+                    <td>day_shape=on • week_shape=on • smooth=EMA</td>
+                    <td>2025-11-06</td>
+                    <td>
+                      <button class="btn" type="button" style="background:#fff;color:var(--ink);border:1px solid var(--border);">Edit</button>
+                      <button class="btn" type="button" style="background:#fff;color:#b91c1c;border:1px solid #ef4444;margin-left:6px;">Delete</button>
+                    </td>
+                  </tr>
+                  <!-- Inject real rows -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- CREATE -->
+			<div class="strategy-view" data-view="create" role="tabpanel" aria-labelledby="create">
+            <h3 style="margin:0 0 8px;">Create Strategy</h3>
+            <p class="muted" style="margin:0 0 10px;">Define weights (LW, LW-1, LW-2, …), choose smoothing, and bind day/week shapes.</p>
+
+            <form style="display:grid;grid-template-columns:repeat(2,minmax(240px,1fr));gap:12px;max-width:920px;margin-top:8px;">
+              <label class="control">
+                <span class="control__label">Strategy Name</span>
+                <input class="control__input" type="text" placeholder="e.g., Aggressive Weekend EMA">
+              </label>
+
+              <label class="control">
+                <span class="control__label">Status</span>
+                <select class="control__input">
+                  <option value="active">Active</option>
+                  <option value="draft">Draft</option>
+                </select>
+              </label>
+
+              <label class="control">
+                <span class="control__label">Weights (LW/LW-1/LW-2)</span>
+                <input class="control__input" type="text" placeholder="0.6, 0.3, 0.1">
+              </label>
+
+              <label class="control">
+                <span class="control__label">Smoothing</span>
+                <select class="control__input">
+                  <option>EMA</option>
+                  <option>SMA</option>
+                  <option>LOWESS</option>
+                </select>
+              </label>
+
+              <label class="control">
+                <span class="control__label">Use Week Shape</span>
+                <select class="control__input"><option>On</option><option>Off</option></select>
+              </label>
+
+              <label class="control">
+                <span class="control__label">Use Day Shape</span>
+                <select class="control__input"><option>On</option><option>Off</option></select>
+              </label>
+
+              <div style="grid-column:1/-1;display:flex;gap:8px;margin-top:6px;">
+                <button class="btn" type="button" style="background:var(--accent-2);">Preview</button>
+                <button class="btn" type="submit">Save</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- EXCLUSIONS -->
+            <div class="strategy-view" data-view="exclusions" role="tabpanel" aria-labelledby="exclusions">
+            <h3 style="margin:0 0 8px;">Exclusions</h3>
+            <p class="muted" style="margin:0 0 10px;">Manage global or per-strategy exclusions (stores, days, slots, holidays).</p>
+
+            <div class="controls" style="margin:10px 0 12px;">
+              <label class="control">
+                <span class="control__label">Scope</span>
+                <select class="control__input">
+                  <option value="">Global</option>
+                  <option>Per Strategy</option>
+                  <option>Per Store</option>
+                </select>
+              </label>
+              <label class="control" style="min-width:260px;flex:1;">
+                <span class="control__label">Rule</span>
+                <input class="control__input" type="text" placeholder="e.g., Exclude QDA3 on Fridays 18:00–22:00">
+              </label>
+              <button class="btn" type="button">Add</button>
+            </div>
+
+            <div class="panel" style="padding:10px;">
+              <ul style="margin:0;padding-left:18px;line-height:1.8;">
+                <li>Exclude store <code>QDA3</code> on Fridays (slots 18:00–22:00)</li>
+                <li>Exclude holiday <code>Eid</code> across all strategies</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+      </div>
     </section>
   </main>
 
+  <!-- Injected footer -->
   <div id="site-footer" role="contentinfo"></div>
 
-  <script>
-    const fallbackCountries = ['AE', 'SA', 'EG'];
-    const fallbackDefaultCountry = fallbackCountries[0];
-
-    const fallbackSanitizeCountry = (value) => {
-      const code = (value || '').toUpperCase();
-      return fallbackCountries.includes(code) ? code : fallbackDefaultCountry;
-    };
-
-    const fallbackEnsureMeta = () => {
-      let meta = document.querySelector('meta[name="ultradar-country"]');
-      if (!meta) {
-        meta = document.createElement('meta');
-        meta.name = 'ultradar-country';
-        document.head.appendChild(meta);
-      }
-      return meta;
-    };
-
-    const fallbackApplyCountry = (value) => {
-      const code = fallbackSanitizeCountry(value);
-      document.documentElement.setAttribute('data-country', code);
-      fallbackEnsureMeta().setAttribute('content', code);
-      return code;
-    };
-
-    const fallbackReadCountry = () => {
-      try {
-        return localStorage.getItem('ultradar.country');
-      } catch (_e) {
-        return null;
-      }
-    };
-
-    const fallbackWriteCountry = (code) => {
-      try {
-        localStorage.setItem('ultradar.country', code);
-      } catch (_e) {
-        // ignore storage errors in fallback mode
-      }
-    };
-
-    const fallbackInitialCountry = fallbackApplyCountry(fallbackReadCountry());
-    fallbackWriteCountry(fallbackInitialCountry);
-
-    function fallbackInitCountrySelector(root = document) {
-      const select = root.querySelector('#countrySelector');
-      if (!select) return;
-      const stored = fallbackSanitizeCountry(fallbackReadCountry());
-      select.value = stored;
-      fallbackApplyCountry(stored);
-      select.addEventListener('change', (event) => {
-        const next = fallbackSanitizeCountry(event.target.value);
-        select.value = next;
-        fallbackApplyCountry(next);
-        fallbackWriteCountry(next);
-        document.dispatchEvent(new CustomEvent('ultradar:countrychange', {
-          detail: { country: next }
-        }));
-      });
-    }
-
-    window.injectPartial ||= async function injectPartial(targetId, path) {
-      try {
-        const el = document.getElementById(targetId);
-        if (!el) return;
-        const res = await fetch(path, { cache: 'no-cache' });
-        if (!res.ok) throw new Error('Failed to fetch ' + path);
-        el.innerHTML = await res.text();
-        const navToggle = document.getElementById('navToggle');
-        const mainNav = document.getElementById('mainNav');
-        if (navToggle && mainNav) {
-          navToggle.addEventListener('click', () => {
-            const open = mainNav.classList.toggle('is-open');
-            navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-          });
-        }
-        fallbackInitCountrySelector(el);
-      } catch (e) {
-        console.error(e);
-      }
-    };
-
-    window.highlightActive ||= function highlightActive(pathname) {
-      const link = document.querySelector(`a[href="${pathname}"]`);
-      if (link) {
-        link.classList.add('is-active');
-      }
-    };
-  </script>
+  <!-- App scripts -->
   <script src="../js/main.js"></script>
+  <script src="../js/strategies.js"></script>
+
+  <!-- Inject partials & highlight active subnav -->
   <script>
-    injectPartial('site-header', '../partials/header.html').then(() => {
-      highlightActive('../pages/marketplace-performance.html');
+    injectPartial('site-header', '../partials/header.html');
+    injectPartial('sopSubnavHost', '../partials/sop-subnav.html').then(() => {
+      highlightActive(location.pathname, '#sopSubnavHost', '.subnav__link');
     });
     injectPartial('site-footer', '../partials/footer.html');
   </script>
