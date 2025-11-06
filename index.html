@@ -50,6 +50,67 @@
   <!-- Scripts -->
   <script src="js/main.js"></script>
   <script>
+    const fallbackCountries = ['AE', 'SA', 'EG'];
+    const fallbackDefaultCountry = fallbackCountries[0];
+
+    const fallbackSanitizeCountry = (value) => {
+      const code = (value || '').toUpperCase();
+      return fallbackCountries.includes(code) ? code : fallbackDefaultCountry;
+    };
+
+    const fallbackEnsureMeta = () => {
+      let meta = document.querySelector('meta[name="ultradar-country"]');
+      if (!meta) {
+        meta = document.createElement('meta');
+        meta.name = 'ultradar-country';
+        document.head.appendChild(meta);
+      }
+      return meta;
+    };
+
+    const fallbackApplyCountry = (value) => {
+      const code = fallbackSanitizeCountry(value);
+      document.documentElement.setAttribute('data-country', code);
+      fallbackEnsureMeta().setAttribute('content', code);
+      return code;
+    };
+
+    const fallbackReadCountry = () => {
+      try {
+        return localStorage.getItem('ultradar.country');
+      } catch (_e) {
+        return null;
+      }
+    };
+
+    const fallbackWriteCountry = (code) => {
+      try {
+        localStorage.setItem('ultradar.country', code);
+      } catch (_e) {
+        // ignore storage errors in fallback mode
+      }
+    };
+
+    const fallbackInitialCountry = fallbackApplyCountry(fallbackReadCountry());
+    fallbackWriteCountry(fallbackInitialCountry);
+
+    function fallbackInitCountrySelector(root = document) {
+      const select = root.querySelector('#countrySelector');
+      if (!select) return;
+      const stored = fallbackSanitizeCountry(fallbackReadCountry());
+      select.value = stored;
+      fallbackApplyCountry(stored);
+      select.addEventListener('change', (event) => {
+        const next = fallbackSanitizeCountry(event.target.value);
+        select.value = next;
+        fallbackApplyCountry(next);
+        fallbackWriteCountry(next);
+        document.dispatchEvent(new CustomEvent('ultradar:countrychange', {
+          detail: { country: next }
+        }));
+      });
+    }
+
     // Lightweight HTML partial loader for header/footer
     async function injectPartial(targetId, path) {
       try {
@@ -68,6 +129,8 @@
             navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
           });
         }
+
+        fallbackInitCountrySelector(el);
       } catch (e) {
         console.error(e);
       }
