@@ -197,8 +197,8 @@
   const formatDayLabel = (day) => {
     if (!day) return '—';
     const trimmed = day.trim();
-    if (trimmed.length <= 3) return trimmed.toUpperCase();
-    return trimmed.slice(0, 3).toUpperCase();
+    if (!trimmed) return '—';
+    return trimmed.charAt(0).toUpperCase();
   };
 
   const formatIntervalLabel = (interval) => {
@@ -321,24 +321,23 @@
           days.forEach((day) => {
             const td = document.createElement('td');
             const value = lookup.get(`${day}__${interval}`) || 0;
-            const { background, ink } = colorForValue(value, globalMax);
-
-            const cell = document.createElement('div');
-            cell.className = 'heatmap-cell';
-            cell.style.setProperty('--cell-color', background);
-            cell.style.setProperty('--cell-ink', ink);
+            const { background } = colorForValue(value, globalMax);
             const readableDay = day || 'Unknown day';
             const readableInterval = interval || 'Unknown interval';
             const percentLabel = formatPercent(value);
+
+            td.style.setProperty('--cell-color', background);
             td.setAttribute(
               'aria-label',
               `${readableDay} ${readableInterval}: ${percentLabel} of daily demand`
             );
-            cell.title = `${readableDay} ${readableInterval}: ${percentLabel} of daily demand`;
-            td.title = cell.title;
+            td.title = `${readableDay} ${readableInterval}: ${percentLabel} of daily demand`;
 
-            cell.setAttribute('aria-hidden', 'true');
-            td.appendChild(cell);
+            const srOnly = document.createElement('span');
+            srOnly.className = 'sr-only';
+            srOnly.textContent = percentLabel;
+            td.appendChild(srOnly);
+
             row.appendChild(td);
           });
 
