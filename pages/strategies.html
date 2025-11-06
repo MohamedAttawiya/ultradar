@@ -3,23 +3,46 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ultradar — Week of Day</title>
+  <title>Ultradar — Strategies</title>
   <link rel="stylesheet" href="../css/styles.css" />
 </head>
 <body>
-  <!-- Shared Header (injected) -->
   <div id="site-header" role="banner"></div>
 
+  <nav class="subnav subnav--sop" aria-label="S&amp;OP quick links">
+    <div class="subnav__inner">
+      <a class="subnav__link" href="../pages/marketplace-performance.html">Marketplace Performance</a>
+      <a class="subnav__link" href="../pages/store-performance.html">Store Performance</a>
+      <a class="subnav__link" href="../pages/slot-curves.html">Slot Curves</a>
+      <a class="subnav__link is-active" href="../pages/strategies.html">Strategies</a>
+      <a class="subnav__link" href="../pages/order-forecast.html">Order Forecast</a>
+      <a class="subnav__link" href="../pages/da-forecast.html">DA Forecast</a>
+    </div>
+  </nav>
+
   <main class="container">
-    <h1>Week of Day</h1>
-    <p class="muted">Placeholder page. We’ll wire this to Athena/API next.</p>
+    <div class="strategy-layout">
+      <nav class="strategy-menu" aria-label="Strategy actions">
+        <button type="button" class="strategy-menu__link is-active" data-section="edit">Edit Strategy</button>
+        <button type="button" class="strategy-menu__link" data-section="create">Create Strategy</button>
+        <button type="button" class="strategy-menu__link" data-section="exclusions">Exclusions</button>
+      </nav>
+
+      <section
+        class="strategy-content"
+        id="strategyContent"
+        aria-label="Edit Strategy workspace"
+        data-section="edit"
+        tabindex="-1"
+      >
+        <p class="sr-only" id="strategyContentStatus">Edit Strategy workspace placeholder</p>
+      </section>
+    </div>
   </main>
 
-  <!-- Shared Footer (injected) -->
   <div id="site-footer" role="contentinfo"></div>
 
   <script>
-    // Fallbacks in case main.js hasn't loaded yet
     const fallbackCountries = ['AE', 'SA', 'EG'];
     const fallbackDefaultCountry = fallbackCountries[0];
 
@@ -115,6 +138,39 @@
       highlightActive('../pages/marketplace-performance.html');
     });
     injectPartial('site-footer', '../partials/footer.html');
+  </script>
+  <script>
+    (function () {
+      const menu = document.querySelector('.strategy-menu');
+      const content = document.getElementById('strategyContent');
+      const status = document.getElementById('strategyContentStatus');
+      if (!menu || !content) return;
+
+      const setActive = (button) => {
+        menu.querySelectorAll('.strategy-menu__link').forEach((link) => {
+          link.classList.toggle('is-active', link === button);
+        });
+
+        const section = button.dataset.section || '';
+        content.dataset.section = section;
+        const label = `${button.textContent.trim()} workspace`;
+        content.setAttribute('aria-label', label);
+        if (status) {
+          status.textContent = `${label} placeholder`;
+        }
+      };
+
+      const first = menu.querySelector('.strategy-menu__link.is-active') || menu.querySelector('.strategy-menu__link');
+      if (first) {
+        setActive(first);
+      }
+
+      menu.addEventListener('click', (event) => {
+        const button = event.target.closest('.strategy-menu__link');
+        if (!button) return;
+        setActive(button);
+      });
+    })();
   </script>
 </body>
 </html>
