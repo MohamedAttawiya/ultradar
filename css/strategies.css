@@ -59,6 +59,71 @@
 .strategy-view{ display:none; }
 .strategy-view[data-state="active"]{ display:block; }
 
+.strategy-results{
+  margin:14px 0 0;
+  padding:0;
+  list-style:none;
+  display:grid;
+  gap:12px;
+}
+
+.strategy-card{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  text-decoration:none;
+  color:inherit;
+  cursor:pointer;
+  transition:transform .12s ease, box-shadow .12s ease;
+}
+
+.strategy-card:hover{
+  transform:translateY(-1px);
+}
+
+.strategy-card__header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.strategy-card__title{
+  margin:0;
+  font-size:1rem;
+}
+
+.strategy-card__meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  margin:0;
+  padding:0;
+  list-style:none;
+  font-size:.9rem;
+  color:var(--muted);
+}
+
+.strategy-card__meta li{
+  display:flex;
+  gap:4px;
+  align-items:center;
+}
+
+.strategy-card__label{
+  color:var(--muted);
+  font-weight:500;
+}
+
+.strategy-card__label::after{
+  content: ':';
+}
+
+.strategy-card__value{
+  color:var(--ink);
+  font-weight:600;
+}
+
 /* Headings/paragraphs match slot-curves tone */
 .strategy-view h2{ margin:0 0 8px; font-size:1.05rem; }
 .strategy-view p{ margin:0 0 10px; color:var(--muted); }
