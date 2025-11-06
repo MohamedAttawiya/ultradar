@@ -31,11 +31,44 @@
       </div>
     </section>
 
-    <section class="panel" style="margin-top:32px;">
-      <h2 style="margin-top:0;">Coming Soon</h2>
-      <p class="muted">
-        Slot-level projections, heat maps, and staffing guardrails will populate this workspace.
-      </p>
+    <section class="panel slotcurves-panel" aria-labelledby="slotCurvesTitle">
+      <div class="panel__intro">
+        <h2 id="slotCurvesTitle">Slot Curve Heatmaps</h2>
+        <p class="muted">
+          Choose a retail calendar week to map demand density by store. Each heatmap shows
+          the distribution of daily demand by time interval so planners can compare saturation
+          and adjust flex levers.
+        </p>
+      </div>
+
+      <form class="controls slotcurves-controls" id="slotCurvesWeekForm">
+        <div class="control">
+          <label class="control__label" for="slotCurvesWeek">Week number</label>
+          <input
+            class="control__input"
+            type="number"
+            id="slotCurvesWeek"
+            name="weeknum"
+            min="1"
+            max="53"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            placeholder="e.g. 35"
+            required
+          />
+        </div>
+        <button class="btn" type="submit" id="slotCurvesSubmit">Load week</button>
+      </form>
+
+      <div class="heatmap-legend" id="slotCurvesLegend" hidden aria-hidden="true">
+        <span class="heatmap-legend__label">Lower saturation</span>
+        <div class="heatmap-legend__gradient" role="presentation"></div>
+        <span class="heatmap-legend__label">Higher saturation</span>
+      </div>
+
+      <p class="status-message" id="slotCurvesMessage" role="status" aria-live="polite"></p>
+
+      <div class="store-heatmaps" id="slotCurvesHeatmaps" role="list" aria-label="Store demand heatmaps"></div>
     </section>
   </main>
 
@@ -132,6 +165,7 @@
     };
   </script>
   <script src="../js/main.js"></script>
+  <script src="../js/slot-curves.js"></script>
   <script>
     injectPartial('site-header', '../partials/header.html').then(() => {
       highlightActive('../pages/marketplace-performance.html');
