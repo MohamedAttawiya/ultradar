@@ -343,3 +343,145 @@ body{
 .table tbody tr:hover { background:#f9fbff; }
 .error-box { margin-top:10px; padding:10px 12px; border:1px solid #fecaca; background:#fff1f2; color:#7f1d1d; border-radius:10px; }
 
+/* ---- compact heatmap overrides ---- */
+:root{
+  --cell-w: 12px;         /* tweak to taste */
+  --cell-h: 8px;          /* tweak to taste */
+  --cell-border: 0.5px;   /* hairline grid */
+  --label-col: 34px;      /* time column width */
+}
+
+/* let the table size itself to its content and scroll horizontally */
+.heatmap-card__body { padding: 2px; overflow: auto; }
+
+/* auto layout so TD widths are respected; size to content, not 100% */
+.heatmap-table {
+  table-layout: auto;
+  width: max-content;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0; /* remove whitespace gaps between tiny cells */
+}
+
+/* tighten headers & label column */
+.heatmap-table thead th { padding: 2px; font-size: .5rem; line-height:1; }
+.heatmap-table thead th:first-child,
+.heatmap-table tbody th {
+  min-width: var(--label-col);
+  padding: 2px 4px;
+  font-size: .5rem;
+}
+
+/* make cells rectangular and small */
+.heatmap-table tbody td {
+  width: var(--cell-w);
+  height: var(--cell-h);
+  padding: 0;
+  border: var(--cell-border) solid rgba(15,23,42,0.25);
+  position: relative;
+  background: var(--cell-color, #0f172a);
+}
+
+/* remove the square aspect-ratio hack */
+.heatmap-table tbody td::after { content: none; }
+
+/* optional: reduce card chrome so more grid fits */
+.store-heatmaps { gap: 8px; }
+.heatmap-card { padding: 8px; }
+/* --- balanced square-like heatmap table --- */
+:root {
+  --cell-w: 20px;   /* widen columns */
+  --cell-h: 6px;    /* flatten rows */
+  --cell-border: 0.5px;
+  --label-col: 40px;
+}
+
+.heatmap-card__body {
+  padding: 2px;
+  overflow: auto;
+}
+
+.heatmap-table {
+  table-layout: auto;
+  width: max-content;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0;
+}
+
+.heatmap-table thead th {
+  padding: 2px;
+  font-size: .55rem;
+  line-height: 1;
+}
+
+.heatmap-table thead th:first-child,
+.heatmap-table tbody th {
+  min-width: var(--label-col);
+  padding: 2px 4px;
+  font-size: .5rem;
+  line-height: 1;
+}
+
+.heatmap-table tbody td {
+  width: var(--cell-w);
+  height: var(--cell-h);
+  padding: 0;
+  border: var(--cell-border) solid rgba(15,23,42,0.25);
+  background: var(--cell-color, #0f172a);
+  position: relative;
+}
+
+.heatmap-table tbody td::after {
+  content: none;
+}
+
+.store-heatmaps {
+  gap: 8px;
+}
+
+/* square-ish overall grid: 48 rows vs 7 cols */
+.heatmap-table {
+  /* tune this one number: */
+  --cell-w: 14px;
+
+  /* 7/48 = 0.1458333 — rectangles, shorter than wide */
+  --cell-h: calc(var(--cell-w) * 0.1458333);
+  --cell-border: 0.5px;
+  --label-col: 36px;   /* time column */
+  --head-h: 12px;      /* compress header row */
+  
+  table-layout: auto;
+  width: max-content;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0; /* remove gaps between tiny cells */
+}
+
+.heatmap-table thead th {
+  padding: 0 2px;
+  height: var(--head-h);
+  line-height: var(--head-h);
+  font-size: .5rem;
+}
+
+.heatmap-table thead th:first-child,
+.heatmap-table tbody th {
+  min-width: var(--label-col);
+  padding: 0 4px;
+  font-size: .5rem;
+  line-height: 1;
+}
+
+.heatmap-table tbody td {
+  width: var(--cell-w);
+  height: var(--cell-h);
+  padding: 0;
+  border: var(--cell-border) solid rgba(15,23,42,0.25);
+  background: var(--cell-color, #0f172a);
+  position: relative;
+}
+.heatmap-table tbody td::after { content: none; } /* kill square hack */
+
+
+

@@ -147,52 +147,46 @@
     return [];
   };
 
-  const buildStoreGroups = (records) => {
-    const storeMap = new Map();
-    const intervalSet = new Set();
-    const daySet = new Set();
-    const extraDaySet = new Set();
+const buildCanonicalIntervals = () => {
+  const out = [];
+  for (let m = 0; m < 24 * 60; m += 30) {
+    const h = Math.floor(m / 60).toString().padStart(2, '0');
+    const mm = (m % 60).toString().padStart(2, '0');
+    const nh = Math.floor(((m + 30) % (24 * 60)) / 60).toString().padStart(2, '0');
+    const nmm = (((m + 30) % 60)).toString().padStart(2, '0');
+    out.push(`${h}:${mm} - ${nh}:${nmm}`);
+  }
+  return out;
+};
 
-    records.forEach((record) => {
-      if (!record) return;
-      const store = record.store_name || 'Unnamed Store';
-      const day = record.day_of_week || '';
-      const interval = record.time_interval || '';
-      const value = Number(record.pct_of_day ?? 0) || 0;
 
-      if (!storeMap.has(store)) {
-        storeMap.set(store, []);
-      }
+ const buildStoreGroups = (records) => {
+  const storeMap = new Map();
+  const extraDaySet = new Set();
 
-      storeMap.get(store).push({ day, interval, value });
-      if (DAY_ORDER.includes(day)) {
-        daySet.add(day);
-      } else if (day) {
-        extraDaySet.add(day);
-      }
-      if (interval) {
-        intervalSet.add(interval);
-      }
-    });
+  records.forEach((record) => {
+    if (!record) return;
+    const store = record.store_name || 'Unnamed Store';
+    const day = record.day_of_week || '';
+    const interval = record.time_interval || '';
+    const value = Number(record.pct_of_day ?? 0) || 0;
 
-    const intervals = Array.from(intervalSet);
-    intervals.sort((a, b) => parseIntervalValue(a) - parseIntervalValue(b));
+    if (!storeMap.has(store)) storeMap.set(store, []);
+    storeMap.get(store).push({ day, interval, value });
 
-    const days = DAY_ORDER.filter((day) => daySet.has(day));
-    if (extraDaySet.size) {
-      const extras = Array.from(extraDaySet).sort();
-      days.push(...extras);
-    }
+    if (day && !DAY_ORDER.includes(day)) extraDaySet.add(day);
+  });
 
-    const stores = Array.from(storeMap.entries()).map(([storeName, entries]) => ({
-      storeName,
-      entries
-    }));
+  // ALWAYS render all 48 slots + the 7 canonical days
+  const intervals = buildCanonicalIntervals();
+  const days = [...DAY_ORDER, ...Array.from(extraDaySet).sort()];
 
-    stores.sort((a, b) => a.storeName.localeCompare(b.storeName, undefined, { sensitivity: 'base' }));
+  const stores = Array.from(storeMap.entries())
+    .map(([storeName, entries]) => ({ storeName, entries }))
+    .sort((a, b) => a.storeName.localeCompare(b.storeName, undefined, { sensitivity: 'base' }));
 
-    return { stores, intervals, days };
-  };
+  return { stores, intervals, days };
+};
 
   const formatDayLabel = (day) => {
     if (!day) return '—';
@@ -283,6 +277,21 @@
         const table = document.createElement('table');
         table.className = 'heatmap-table';
         table.setAttribute('aria-label', `Slot curve distribution for ${storeName} in week ${context.week} for ${context.country}`);
+
+// inside renderHeatmaps, after you create `table`
+const cols = days.length;      // usually 7
+const rows = intervals.length; // 48
+const labelCol = 36;           // match CSS
+const headH = 12;              // match CSS
+const cellW = 22;              // pick your density
+
+// Solve for cellH so (labelCol + cols*cellW) ≈ (headH + rows*cellH)
+let cellH = (labelCol + cols * cellW - headH) / rows;
+// guardrails
+cellH = Math.max(3, Math.min(cellH, 12));
+
+table.style.setProperty('--cell-w', `${cellW}px`);
+table.style.setProperty('--cell-h', `${Math.round(cellH)}px`);
 
         const thead = document.createElement('thead');
         const headRow = document.createElement('tr');
