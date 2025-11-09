@@ -1,6 +1,5 @@
 // strategy-form.js — full drop-in with separate Slot/WoD volatility editors,
 // correct preview gating, and JSON modal export following the provided schema.
-
 (function () {
   const ns = (window.UltradarStrategyForm = window.UltradarStrategyForm || {});
 
@@ -265,17 +264,76 @@
     toggle(chkWeek, "#ud-vol-wod");  toggle(chkWeek, "#ud-wod-view");
 
     // Create Strategy — validate visible fields, build JSON, show modal
-    btn.addEventListener('click', () => {
-      const result = validateAndBuild(form);
-      const errors = form.querySelector('#ud-strategy-errors') || form.querySelector('#ud-error-msg');
-      if (!result.ok) {
-        if (errors) { errors.style.display = ''; errors.textContent = result.error; }
-        if (result.el) { result.el.classList.add('invalid'); result.el.scrollIntoView({ behavior:'smooth', block:'center' }); }
-        return;
+btn.addEventListener("click", async () => {
+	
+  const result = validateAndBuild(form);
+  const errors = form.querySelector("#ud-strategy-errors") || form.querySelector("#ud-error-msg");
+
+  if (!result.ok) {
+    if (errors) { errors.style.display = ""; errors.textContent = result.error; }
+    if (result.el) { result.el.classList.add("invalid"); result.el.scrollIntoView({ behavior: "smooth", block: "center" }); }
+    return;
+  }
+
+  // Show JSON modal first (so user can inspect before upload)
+  showJsonModal(result.json);
+
+  // Reference modal and footer
+  const modal = document.getElementById("ud-json-modal");
+  const API_BASE = "https://zp97gyooxk.execute-api.eu-central-1.amazonaws.com";
+  if (!modal) return;
+  const footer = modal.querySelector("div[style*='border-top']") || modal.querySelector("div:last-child");
+
+  // Add upload button if missing
+  let btnUpload = document.getElementById("ud-json-upload");
+  if (!btnUpload) {
+    btnUpload = document.createElement("button");
+    btnUpload.id = "ud-json-upload";
+    btnUpload.className = "btn-chip";
+    btnUpload.textContent = "Save to S3";
+    footer.appendChild(btnUpload);
+  }
+
+  // Reset each time
+  btnUpload.disabled = false;
+  btnUpload.textContent = "Save to S3";
+
+  btnUpload.onclick = async () => {
+    btnUpload.disabled = true;
+    btnUpload.textContent = "Saving…";
+
+    try {
+      // POST to your same API base (Lambda handles POST /strategies)
+      const res = await fetch(`${API_BASE}/strategies`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(result.json)
+      });
+
+      const text = await res.text();
+      let data = {};
+      try { data = JSON.parse(text); } catch {}
+
+      if (!res.ok) throw new Error(data?.error || text || `HTTP ${res.status}`);
+
+      btnUpload.textContent = "Saved ✓";
+
+      // Show where it was stored
+      const pre = document.getElementById("ud-json-pre");
+      if (pre && data?.bucket && data?.key) {
+        pre.textContent += `\n\n// Uploaded to: s3://${data.bucket}/${data.key}\n// ETag: ${data.etag || "n/a"}`;
       }
-      if (errors) { errors.style.display='none'; errors.textContent=''; }
-      showJsonModal(result.json);
-    });
+
+    } catch (e) {
+      btnUpload.disabled = false;
+      btnUpload.textContent = "Save to S3";
+      const msg = e?.message || String(e);
+      const pre = document.getElementById("ud-json-pre");
+      if (pre) pre.textContent += `\n\n// Upload failed: ${msg}`;
+      else alert(`Upload failed: ${msg}`);
+    }
+  };
+});
   }
 
   // ---------- Override rows ----------
