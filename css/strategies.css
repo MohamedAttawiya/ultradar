@@ -159,3 +159,41 @@
 .navlike:hover{ background:var(--surface); border-color:#cbd5e1; }
 .navlike.is-active{ color:var(--accent); background:rgba(37,99,235,.10); border-color:rgba(37,99,235,.40); }
 
+/* Centered row specifically for Created by */
+.inline-center {
+  display: flex;
+  align-items: center;       /* vertical centering */
+  gap: 12px;                 /* same rhythm as form */
+  margin-top: 8px;           /* match other rows */
+}
+.inline-center .label {
+  width: var(--label);       /* keep the left column width consistent */
+  font-weight: 600;          /* same visual weight as other labels */
+}
+.inline-center .grow {
+  flex: 1;                   /* pill expands to full remaining width */
+}
+/* === Informational & Warning Notes (for pseudo-data sections) === */
+
+.note {
+  margin-top: 6px;
+  font-size: 10px;
+  color: #475569; /* slate-600 */
+}
+
+.note-warn {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  background: #fff7ed;       /* soft amber background */
+  border: 1px solid #fdba74; /* orange-300 border */
+  color: #9a3412;            /* amber-900 text */
+  border-radius: 10px;
+  padding: 8px 10px;
+  line-height: 1.35;
+}
+
+.note-warn .icon {
+  line-height: 1;
+  font-size: 10px;
+}
