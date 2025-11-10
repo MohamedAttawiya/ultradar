@@ -207,7 +207,7 @@
         </div>
 
         <!-- Global error slot (used by Create validation) -->
-        <div id="ud-strategy-errors" class="muted" style="color:#b91c1c;margin-top:6px;"></div>
+        <div id="ud-strategy-errors" class="muted" style="color:#b91c1c;margin-top:6px; display:none;"></div>
 
         <!-- JSON Preview Modal -->
         <div id="ud-json-modal" style="display:none; position:fixed; inset:0; background:rgba(2,6,23,.55); z-index:9999; align-items:center; justify-content:center;">
@@ -874,6 +874,11 @@ btn.addEventListener("click", async () => {
       setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
     };
   }
+// Returns numeric value or default if blank/NaN
+function numOr(v, d) {
+  const x = parseFloat(v);
+  return Number.isFinite(x) ? x : d;
+}
 
   // Small utilities
   function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }

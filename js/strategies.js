@@ -94,72 +94,180 @@
     return [];
   }
 
-  function renderStrategies(strategies){
-    const container = ensureStrategyContainer();
-    if (!container) return;
+ function renderStrategies(strategies) {
+  const container = ensureStrategyContainer();
+  if (!container) return;
 
-    if (!Array.isArray(strategies) || strategies.length === 0){
-      container.innerHTML = '<p class="muted">No strategies found.</p>';
-      return;
-    }
+  ensureTagCss();
 
-    const list = document.createElement('ul');
-    list.className = 'strategy-results';
+  const listData = Array.isArray(strategies) ? [...strategies] : [];
+  if (!listData.length) {
+    container.innerHTML = '<p class="muted">No strategies found.</p>';
+    return;
+  }
 
-    strategies.forEach(strategy => {
-      const payload = strategy.payload || {};
-      const meta = strategy.metadata || payload.metadata || {};
-      const name = strategy.name || payload.name || payload.strategy_id || 'Unnamed strategy';
-      const version   = strategy.version ?? payload.version ?? '—';
-      const createdBy = strategy.created_by || meta.created_by || meta.owner || '—';
-      const createdAt = strategy.created_at || meta.created_at || strategy.lastModified || '';
-      const weighting = payload.weighting || {};
-      const smoothing = payload.smoothing || {};
-      const output    = payload.output_policy || {};
-      const stratType = payload.strategy_type || payload.type || '—';
-      const mode      = payload.mode || '—';
+  // Sort newest first
+  listData.sort((a, b) => {
+    const da = new Date(a.lastModified || a.metadata?.created_at || a.payload?.metadata?.created_at || 0).getTime();
+    const db = new Date(b.lastModified || b.metadata?.created_at || b.payload?.metadata?.created_at || 0).getTime();
+    return (db || 0) - (da || 0);
+  });
 
-      const weightingText = weighting.method
-        ? `${String(weighting.method).toUpperCase()}${weighting.decay_alpha!=null?` (α=${weighting.decay_alpha})`:''}`
-        : (payload.decay_alpha!=null?`DECAY (α=${payload.decay_alpha})`:'—');
+  const list = document.createElement("ul");
+  list.className = "strategy-results";
 
-      const smoothingSlot = (smoothing.slot_smoothing || {});
-      const smoothingText =
-        (smoothingSlot.enabled ? `${smoothingSlot.kernel || '—'} (σ=${smoothingSlot.kernel_size ?? '—'})` :
-        (payload.slot_smoothing_strength != null ? `gaussian (σ=${payload.slot_smoothing_strength})` : '—'));
+  listData.forEach((item) => {
+    const p = item.payload || {};
+    const params = p.parameters || {};
+    const decay = params.decay || {};
+    const vol = p.volatility || {};
+    const sod = vol.slot_of_day || {};
+    const wod = vol.week_of_day || {};
+    const cons = p.constraints || {};
+    const lowpad = cons.low_volume_padding || {};
+    const meta = p.metadata || item.metadata || {};
+    const name = p.name || item.name || p.strategy_id || "Unnamed strategy";
+    const id = p.strategy_id || item.strategy_id || "—";
+    const type = p.type || "decay";
+    const createdBy = meta.created_by || item.created_by || "—";
+    const createdAt = meta.created_at || item.created_at || item.lastModified || "";
 
-      const shapes =
-        (output.generate_shapes?.join(', ') ||
-        [
-          payload.output_schema?.weekly_shape ? 'weekly' : null,
-          payload.output_schema?.daily_shape  ? 'daily'  : null,
-          payload.output_schema?.slot_shape   ? 'slot'   : null
-        ].filter(Boolean).join(', ')) || '—';
-
-      const li = document.createElement('li');
-      li.className = 'panel strategy-card';
-      li.innerHTML = `
-        <div class="strategy-card__header">
-          <h4 class="strategy-card__title">${escapeHtml(name)}</h4>
-          <span class="muted">${escapeHtml(version==='—'?'—':`v${version}`)}</span>
+    const li = document.createElement("li");
+    li.className = "panel strategy-card";
+    li.innerHTML = `
+      <div class="strategy-card__header">
+        <h4 class="strategy-card__title">${escapeHtml(name)}</h4>
+        <div class="tagrow">
+          <span class="tag ${sod.enabled ? "tag-on" : "tag-off"}">SOD ${sod.enabled ? "ENABLED" : "OFF"}</span>
+          <span class="tag ${wod.enabled ? "tag-on" : "tag-off"}">WOD ${wod.enabled ? "ENABLED" : "OFF"}</span>
         </div>
-        <ul class="strategy-card__meta">
-          <li><span class="strategy-card__label">Type</span><span class="strategy-card__value">${escapeHtml(stratType)}</span></li>
-          <li><span class="strategy-card__label">Mode</span><span class="strategy-card__value">${escapeHtml(mode)}</span></li>
-          <li><span class="strategy-card__label">Created by</span><span class="strategy-card__value">${escapeHtml(createdBy)}</span></li>
-          <li><span class="strategy-card__label">Created at</span><span class="strategy-card__value">${escapeHtml(formatDate(createdAt))}</span></li>
-          <li><span class="strategy-card__label">Size</span><span class="strategy-card__value">${escapeHtml(formatSize(strategy))}</span></li>
-          <li><span class="strategy-card__label">Weighting</span><span class="strategy-card__value">${escapeHtml(weightingText)}</span></li>
-          <li><span class="strategy-card__label">Smoothing</span><span class="strategy-card__value">${escapeHtml(smoothingText)}</span></li>
-          <li><span class="strategy-card__label">Output</span><span class="strategy-card__value">${escapeHtml(shapes)}</span></li>
-        </ul>
-      `;
-      list.appendChild(li);
+      </div>
+
+      <ul class="strategy-card__meta">
+        <li><span class="strategy-card__label">ID</span><span class="strategy-card__value" title="${escapeHtml(id)}">${escapeHtml(id)}</span></li>
+        <li><span class="strategy-card__label">Name</span><span class="strategy-card__value">${escapeHtml(name)}</span></li>
+        <li><span class="strategy-card__label">Type</span><span class="strategy-card__value">${escapeHtml(type)}</span></li>
+        <li><span class="strategy-card__label">Created by</span><span class="strategy-card__value">${escapeHtml(createdBy)}</span></li>
+        <li><span class="strategy-card__label">Created at</span><span class="strategy-card__value">${escapeHtml(formatDate(createdAt))}</span></li>
+      </ul>
+
+      <div style="display:flex; gap:8px; margin-top:6px;">
+        <button class="btn-plain btn-json-toggle" type="button">View Details</button>
+      </div>
+      <div class="strategy-details" style="display:none; margin-top:8px; padding:10px; background:#f8fafc; border-radius:10px; border:1px solid #e2e8f0;">
+        <div class="details-inner" style="font-size:13px; line-height:1.5; color:#0f172a;"></div>
+        <pre class="strategy-json" style="display:none; margin:8px 0 0; padding:8px; background:#0b1220; color:#e5e7eb; border-radius:8px; max-height:240px; overflow:auto; font-size:12px;"></pre>
+      </div>
+    `;
+
+    const btn = li.querySelector(".btn-json-toggle");
+    const details = li.querySelector(".strategy-details");
+    const inner = li.querySelector(".details-inner");
+    const pre = li.querySelector(".strategy-json");
+
+    btn.addEventListener("click", () => {
+      const open = details.style.display !== "none";
+      if (open) {
+        details.style.display = "none";
+        btn.textContent = "View Details";
+      } else {
+        inner.innerHTML = buildDetailsHTML(p);
+        pre.textContent = JSON.stringify(p, null, 2);
+        pre.style.display = "block";
+        details.style.display = "block";
+        btn.textContent = "Hide Details";
+      }
     });
 
-    container.innerHTML = '';
-    container.appendChild(list);
+    list.appendChild(li);
+  });
+
+  container.innerHTML = "";
+  container.appendChild(list);
+
+  // --- helpers ---
+  function n2(x) {
+    const v = Number(x);
+    return Number.isFinite(v) ? v.toFixed(2) : "—";
   }
+
+  function buildDetailsHTML(p) {
+    const params = p.parameters || {};
+    const decay = params.decay || {};
+    const vol = p.volatility || {};
+    const sod = vol.slot_of_day || {};
+    const wod = vol.week_of_day || {};
+    const cons = p.constraints || {};
+    const lowpad = cons.low_volume_padding || {};
+    const meta = p.metadata || {};
+
+    return `
+      <div style="margin-bottom:8px;"><strong>Description:</strong> ${escapeHtml(p.description || "—")}</div>
+      <div style="margin-top:8px;"><strong>Parameters:</strong></div>
+      <ul style="margin:0 0 8px 16px; padding:0;">
+        <li>Lookback weeks: ${params.lookback_weeks ?? "—"}</li>
+        <li>Decay mode: ${escapeHtml(decay.mode || "—")}</li>
+        ${
+          decay.mode === "alpha"
+            ? `<li>Alpha (α): ${n2(decay.alpha)}</li>`
+            : decay.mode === "override"
+            ? `<li>Override weights: [${(decay.override_weights || []).map(n2).join(", ")}]</li>`
+            : ""
+        }
+      </ul>
+
+      <div><strong>Volatility:</strong></div>
+      <ul style="margin:0 0 8px 16px; padding:0;">
+        <li>Slot of Day: ${sod.enabled ? "Enabled ✅" : "Disabled ❌"} ${
+      sod.enabled
+        ? `(λ=${n2(sod.lambda)}, floor=${n2(sod.trust_floor)}, ceil=${n2(
+            sod.trust_ceiling
+          )}, blend=${n2(sod.blend_global)})`
+        : ""
+    }</li>
+        <li>Week of Day: ${wod.enabled ? "Enabled ✅" : "Disabled ❌"} ${
+      wod.enabled
+        ? `(λ=${n2(wod.lambda)}, floor=${n2(wod.trust_floor)}, ceil=${n2(
+            wod.trust_ceiling
+          )}, blend=${n2(wod.blend_global)})`
+        : ""
+    }</li>
+      </ul>
+
+      <div><strong>Constraints:</strong></div>
+      <ul style="margin:0 0 8px 16px; padding:0;">
+        <li>Min weeks required: ${cons.min_weeks_required ?? "—"}</li>
+        <li>Low-volume padding: ${
+          lowpad.enabled
+            ? `Enabled (if &lt; ${lowpad.threshold_orders_lt} → floor ${lowpad.floor_orders_set_to})`
+            : "Disabled"
+        }</li>
+      </ul>
+
+      <div><strong>Metadata:</strong></div>
+      <ul style="margin:0 0 8px 16px; padding:0;">
+        <li>Created by: ${escapeHtml(meta.created_by || "—")}</li>
+        <li>Created at: ${escapeHtml(formatDate(meta.created_at))}</li>
+      </ul>
+
+      <div><strong>Raw JSON:</strong></div>
+    `;
+  }
+
+  function ensureTagCss() {
+    if (document.getElementById("ud-strategy-tags-css")) return;
+    const s = document.createElement("style");
+    s.id = "ud-strategy-tags-css";
+    s.textContent = `
+      .tagrow { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+      .tag { display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:9999px;
+             font-size:12px; font-weight:700; letter-spacing:.02em; }
+      .tag-on  { background:rgba(16,185,129,.15); color:#065f46; border:1px solid rgba(16,185,129,.35); }
+      .tag-off { background:#f1f5f9; color:#64748b; border:1px solid #e2e8f0; }
+    `;
+    document.head.appendChild(s);
+  }
+}
 
   async function loadStrategies(){
     const container = ensureStrategyContainer();
