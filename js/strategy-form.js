@@ -3,6 +3,23 @@
 (function () {
   const ns = (window.UltradarStrategyForm = window.UltradarStrategyForm || {});
 
+  const state = {
+    host: null,
+    form: null,
+    svgMain: null,
+    svgSlot: null,
+    svgWod: null,
+    submitBtn: null,
+    cancelBtn: null,
+    editBanner: null,
+    editTarget: null,
+    mode: "create",
+    original: null,
+    originalS3: null,
+    pendingMode: null,
+    pendingPayload: null
+  };
+
   ns.mount = function (hostEl) {
     if (!hostEl) return;
     hostEl.innerHTML = template();
@@ -11,8 +28,33 @@
     const svgSlot  = form.querySelector("#ud-slot-svg");
     const svgWod   = form.querySelector("#ud-wod-svg");
     const btn      = form.querySelector("#ud-create-btn");
+    state.host = hostEl;
+    state.form = form;
+    state.svgMain = svgMain;
+    state.svgSlot = svgSlot;
+    state.svgWod = svgWod;
+    state.submitBtn = btn;
+    state.cancelBtn = form.querySelector("#ud-cancel-edit");
+    state.editBanner = form.querySelector("#ud-edit-banner");
+    state.editTarget = form.querySelector("#ud-edit-target");
     wire(form, svgMain, svgSlot, svgWod, btn);
-    renderAll(form, svgMain, svgSlot, svgWod, btn);
+    if (state.pendingMode) {
+      const pendingMode = state.pendingMode;
+      const pendingPayload = state.pendingPayload;
+      state.pendingMode = null;
+      state.pendingPayload = null;
+      setMode(pendingMode, pendingPayload);
+    } else {
+      setMode("create");
+    }
+  };
+
+  ns.prefillForEdit = function (strategy) {
+    setMode("edit", strategy);
+  };
+
+  ns.resetToCreate = function () {
+    setMode("create");
   };
 
   // ---------- Template ----------
@@ -53,12 +95,23 @@
 
       .note-warn { display:flex; gap:8px; align-items:flex-start; background:#fff7ed; border:1px solid #fdba74; color:#9a3412; border-radius:10px; padding:8px 10px; line-height:1.35; margin-top:6px; }
       .note-warn .icon { line-height:1; font-size:14px; }
+      #ud-edit-banner { display:none; align-items:flex-start; gap:8px; background:#ecfdf5; border:1px solid #34d399; color:#047857; border-radius:10px; padding:8px 10px; margin-top:10px; }
+      #ud-edit-banner .icon { font-size:14px; line-height:1; }
+      #ud-edit-target { font-weight:700; }
+      .btn-secondary { background:#fff; color:#475569; border:1px solid var(--neutral); border-radius:10px; padding:10px 16px; font-weight:600; cursor:pointer; }
     `;
 
     return `
       <style>${css}</style>
       <form id="ud-strategy-form" novalidate>
         <h4>Create Strategy</h4>
+
+        <div id="ud-edit-banner">
+          <div class="icon">✏️</div>
+          <div>
+            You are editing <span id="ud-edit-target"></span>. Confirm to upload a new version to S3.
+          </div>
+        </div>
 
         <div class="fieldset">
           <label class="inline"><div>Strategy ID</div><input class="pill" name="strategy_id" placeholder="Auto-generated UUID" /></label>
@@ -202,7 +255,8 @@
           </div>
         </div>
 
-        <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+          <button type="button" id="ud-cancel-edit" class="btn-secondary" style="display:none;">Cancel</button>
           <button type="button" id="ud-create-btn" style="background:#2563eb;color:#fff;border:0;border-radius:10px;padding:10px 16px;font-weight:600;cursor:pointer;">Create Strategy</button>
         </div>
 
@@ -234,8 +288,15 @@
     const chkOv = form.querySelector("#override_decay");
     const chkSlot = form.querySelector("#apply_slot_vol");
     const chkWeek = form.querySelector("#apply_week_vol");
+    const btnCancel = form.querySelector("#ud-cancel-edit");
 
     const toggle = (chk, sel) => { const el=form.querySelector(sel); if (el) el.style.display = chk.checked ? "" : "none"; };
+
+    if (btnCancel) {
+      btnCancel.addEventListener("click", () => {
+        setMode("create");
+      });
+    }
 
     chkOv.addEventListener("change", () => {
       toggle(chkOv, "#ud-override-box");
@@ -264,10 +325,10 @@
     toggle(chkWeek, "#ud-vol-wod");  toggle(chkWeek, "#ud-wod-view");
 
     // Create Strategy — validate visible fields, build JSON, show modal
-btn.addEventListener("click", async () => {
-	
-  const result = validateAndBuild(form);
-  const errors = form.querySelector("#ud-strategy-errors") || form.querySelector("#ud-error-msg");
+    btn.addEventListener("click", async () => {
+
+      const result = validateAndBuild(form);
+      const errors = form.querySelector("#ud-strategy-errors") || form.querySelector("#ud-error-msg");
 
   if (!result.ok) {
     if (errors) { errors.style.display = ""; errors.textContent = result.error; }
@@ -290,13 +351,15 @@ btn.addEventListener("click", async () => {
     btnUpload = document.createElement("button");
     btnUpload.id = "ud-json-upload";
     btnUpload.className = "btn-chip";
-    btnUpload.textContent = "Save to S3";
+    btnUpload.textContent = state.mode === "edit" ? "Save New Version to S3" : "Save to S3";
     footer.appendChild(btnUpload);
   }
 
   // Reset each time
   btnUpload.disabled = false;
-  btnUpload.textContent = "Save to S3";
+  const uploadDefaultLabel = state.mode === "edit" ? "Save New Version to S3" : "Save to S3";
+  const uploadSuccessLabel = state.mode === "edit" ? "Version Saved ✓" : "Saved ✓";
+  btnUpload.textContent = uploadDefaultLabel;
 
   btnUpload.onclick = async () => {
     btnUpload.disabled = true;
@@ -316,7 +379,7 @@ btn.addEventListener("click", async () => {
 
       if (!res.ok) throw new Error(data?.error || text || `HTTP ${res.status}`);
 
-      btnUpload.textContent = "Saved ✓";
+      btnUpload.textContent = uploadSuccessLabel;
 
       // Show where it was stored
       const pre = document.getElementById("ud-json-pre");
@@ -326,7 +389,7 @@ btn.addEventListener("click", async () => {
 
     } catch (e) {
       btnUpload.disabled = false;
-      btnUpload.textContent = "Save to S3";
+      btnUpload.textContent = uploadDefaultLabel;
       const msg = e?.message || String(e);
       const pre = document.getElementById("ud-json-pre");
       if (pre) pre.textContent += `\n\n// Upload failed: ${msg}`;
@@ -337,6 +400,179 @@ btn.addEventListener("click", async () => {
   }
 
   // ---------- Override rows ----------
+  function setMode(mode, payload) {
+    if (!state.form) {
+      state.pendingMode = mode || "create";
+      state.pendingPayload = cloneData(payload);
+      return;
+    }
+
+    const normalizedMode = mode === "edit" ? "edit" : "create";
+    state.mode = normalizedMode;
+    state.original = normalizedMode === "edit" && payload ? cloneData(payload) : null;
+    state.originalS3 = state.original?.__s3 || null;
+
+    const form = state.form;
+    state.cancelBtn = form.querySelector("#ud-cancel-edit");
+
+    if (normalizedMode === "edit" && state.original) {
+      populateForm(form, state.original);
+    } else {
+      resetForm(form);
+      state.original = null;
+      state.originalS3 = null;
+    }
+
+    updateEditBanner();
+
+    const heading = form.querySelector("h4");
+    if (heading) heading.textContent = normalizedMode === "edit" ? "Edit Strategy" : "Create Strategy";
+
+    if (state.submitBtn) {
+      state.submitBtn.textContent = normalizedMode === "edit" ? "Confirm Edit" : "Create Strategy";
+    }
+    if (state.cancelBtn) {
+      state.cancelBtn.style.display = normalizedMode === "edit" ? "" : "none";
+    }
+
+    if (form && state.svgMain && state.svgSlot && state.svgWod && state.submitBtn) {
+      renderAll(form, state.svgMain, state.svgSlot, state.svgWod, state.submitBtn);
+    }
+  }
+
+  function resetForm(form) {
+    if (!form) return;
+    form.reset();
+    const overrideRows = form.querySelector("#ud-override-rows");
+    if (overrideRows) overrideRows.innerHTML = "";
+    const overrideBox = form.querySelector("#ud-override-box");
+    if (overrideBox) overrideBox.style.display = "none";
+    const alphaRow = form.querySelector("#decay-alpha-row");
+    if (alphaRow && alphaRow.parentElement) alphaRow.parentElement.style.display = "";
+
+    ["#apply_slot_vol", "#apply_week_vol", "#override_decay"].forEach(sel => {
+      const el = form.querySelector(sel);
+      if (el) el.checked = false;
+    });
+
+    ["#ud-slot-view", "#ud-vol-slot", "#ud-wod-view", "#ud-vol-wod"].forEach(sel => {
+      const el = form.querySelector(sel);
+      if (el) el.style.display = "none";
+    });
+
+    const err = form.querySelector("#ud-error-msg");
+    if (err) { err.textContent = ""; err.style.display = "none"; }
+    const globalErr = form.querySelector("#ud-strategy-errors");
+    if (globalErr) { globalErr.textContent = ""; globalErr.style.display = "none"; }
+  }
+
+  function populateForm(form, strategy) {
+    if (!form || !strategy) return;
+    resetForm(form);
+
+    const setVal = (field, value) => {
+      if (!field) return;
+      field.value = value == null ? "" : value;
+    };
+
+    const metadata = strategy.metadata || {};
+    const params = strategy.parameters || {};
+    const decay = params.decay || {};
+    const vol = strategy.volatility || {};
+    const sod = vol.slot_of_day || {};
+    const wod = vol.week_of_day || {};
+    const constraints = strategy.constraints || {};
+    const lowpad = constraints.low_volume_padding || {};
+
+    setVal(form.elements.strategy_id, strategy.strategy_id || "");
+    setVal(form.elements.name, strategy.name || "");
+    setVal(form.elements.description, strategy.description || "");
+    setVal(form.elements.created_by, metadata.edited_by || metadata.created_by || "");
+
+    if (params.lookback_weeks != null) {
+      setVal(form.elements.lookback_weeks, params.lookback_weeks);
+    }
+
+    const chkOv = form.querySelector("#override_decay");
+    if (chkOv) {
+      chkOv.checked = decay.mode === "override";
+      chkOv.dispatchEvent(new Event("change"));
+      if (decay.mode === "override") {
+        const weights = Array.isArray(decay.override_weights) ? decay.override_weights : [];
+        weights.forEach((w, idx) => {
+          const input = form.elements[`override_${idx}`];
+          setVal(input, w);
+        });
+        if (form.elements.decay_alpha) form.elements.decay_alpha.value = "";
+      } else {
+        setVal(form.elements.decay_alpha, decay.alpha != null ? decay.alpha : "");
+      }
+    }
+
+    const chkSlot = form.querySelector("#apply_slot_vol");
+    if (chkSlot) {
+      chkSlot.checked = !!sod.enabled;
+      chkSlot.dispatchEvent(new Event("change"));
+    }
+    setVal(form.elements.volatility_lambda, sod.lambda);
+    setVal(form.elements.trust_floor, sod.trust_floor);
+    setVal(form.elements.trust_ceiling, sod.trust_ceiling);
+    setVal(form.elements.blend_global, sod.blend_global);
+
+    const chkWeek = form.querySelector("#apply_week_vol");
+    if (chkWeek) {
+      chkWeek.checked = !!wod.enabled;
+      chkWeek.dispatchEvent(new Event("change"));
+    }
+    setVal(form.elements.wod_lambda, wod.lambda);
+    setVal(form.elements.wod_trust_floor, wod.trust_floor);
+    setVal(form.elements.wod_trust_ceiling, wod.trust_ceiling);
+    setVal(form.elements.wod_blend_global, wod.blend_global);
+
+    setVal(form.elements.min_weeks_required, constraints.min_weeks_required);
+    if (lowpad.enabled) {
+      setVal(form.elements.lv_threshold, lowpad.threshold_orders_lt);
+      setVal(form.elements.lv_floor, lowpad.floor_orders_set_to);
+    } else {
+      setVal(form.elements.lv_threshold, "");
+      setVal(form.elements.lv_floor, "");
+    }
+
+    const err = form.querySelector("#ud-strategy-errors");
+    if (err) { err.textContent = ""; err.style.display = "none"; }
+  }
+
+  function updateEditBanner() {
+    if (!state.editBanner) return;
+    if (state.mode === "edit" && state.original) {
+      state.editBanner.style.display = "flex";
+      if (state.editTarget) state.editTarget.textContent = describeStrategy(state.original);
+    } else {
+      state.editBanner.style.display = "none";
+      if (state.editTarget) state.editTarget.textContent = "";
+    }
+  }
+
+  function cloneData(obj) {
+    if (obj == null) return null;
+    if (typeof structuredClone === "function") {
+      try { return structuredClone(obj); } catch (e) {}
+    }
+    try { return JSON.parse(JSON.stringify(obj)); } catch (e) { return obj; }
+  }
+
+  function describeStrategy(strategy) {
+    if (!strategy) return "strategy";
+    const name = strategy.name || strategy.metadata?.name || "";
+    const id = strategy.strategy_id || strategy.metadata?.strategy_id || "";
+    const version = strategy.version != null ? `v${strategy.version}` : "";
+    const parts = [];
+    if (name) parts.push(`"${name}"`);
+    if (id) parts.push(`ID ${id}`);
+    if (version) parts.push(version);
+    return parts.length ? parts.join(" · ") : "strategy";
+  }
+
   function makeOverrideRows(form) {
     const rows = form.querySelector("#ud-override-rows");
     const n = clampInt(form.elements.lookback_weeks.value || "0", 2, 25);
@@ -787,6 +1023,42 @@ btn.addEventListener("click", async () => {
       lvEnabled = true; thVal = thNum; flVal = flNum;
     }
 
+    const nowIso = new Date().toISOString();
+    let metadata = { created_by: fCreator.value.trim(), created_at: nowIso };
+    let version = 1;
+    const previewMeta = { ui_only: true, notes: "non-persistent UI hints", source: state.mode === 'edit' ? 'edit' : 'create' };
+
+    if (state.mode === 'edit' && state.original) {
+      const priorMeta = cloneData(state.original.metadata || {});
+      const priorCreatedBy = priorMeta?.created_by || metadata.created_by;
+      const priorCreatedAt = priorMeta?.created_at || metadata.created_at;
+      metadata = {
+        ...priorMeta,
+        created_by: priorCreatedBy,
+        created_at: priorCreatedAt,
+        edited_by: fCreator.value.trim(),
+        edited_at: nowIso
+      };
+      const prevVersion = parseInt(state.original.version, 10);
+      if (Number.isFinite(prevVersion)) {
+        version = prevVersion + 1;
+      } else {
+        const asNumber = Number(state.original.version);
+        version = Number.isFinite(asNumber) ? asNumber + 1 : 2;
+      }
+      if (state.original.version != null) previewMeta.previous_version = state.original.version;
+      if (state.original.strategy_id) previewMeta.previous_strategy_id = state.original.strategy_id;
+      if (state.original.metadata?.created_at) previewMeta.original_created_at = state.original.metadata.created_at;
+      if (state.original.metadata?.created_by) previewMeta.original_created_by = state.original.metadata.created_by;
+      if (state.originalS3) {
+        if (state.originalS3.bucket) previewMeta.previous_s3_bucket = state.originalS3.bucket;
+        if (state.originalS3.key) previewMeta.previous_s3_key = state.originalS3.key;
+        if (state.originalS3.etag) previewMeta.previous_s3_etag = state.originalS3.etag;
+      }
+    }
+
+    metadata.version = version;
+
     // Build JSON with requested schema
     const out = {
       "strategy_id": fId.value.trim(),
@@ -815,16 +1087,10 @@ btn.addEventListener("click", async () => {
         "min_weeks_required": (minWeeks ?? lb)
       },
 
-      "metadata": {
-        "created_by": fCreator.value.trim(),
-        "created_at": new Date().toISOString()
-      },
+      "metadata": metadata,
 
-      "preview_meta": {
-        "ui_only": true,
-        "notes": "non-persistent UI hints"
-      },
-      "version": 1
+      "preview_meta": previewMeta,
+      "version": version
     };
 
     return { ok:true, json: out };

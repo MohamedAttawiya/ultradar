@@ -94,6 +94,14 @@
     return [];
   }
 
+  function cloneStrategyData(obj) {
+    if (obj == null) return null;
+    if (typeof structuredClone === 'function') {
+      try { return structuredClone(obj); } catch (e) {}
+    }
+    try { return JSON.parse(JSON.stringify(obj)); } catch (e) { return obj; }
+  }
+
  function renderStrategies(strategies) {
   const container = ensureStrategyContainer();
   if (!container) return;
@@ -153,6 +161,7 @@
 
       <div style="display:flex; gap:8px; margin-top:6px;">
         <button class="btn-plain btn-json-toggle" type="button">View Details</button>
+        <button class="btn-chip btn-edit" type="button">Edit</button>
       </div>
       <div class="strategy-details" style="display:none; margin-top:8px; padding:10px; background:#f8fafc; border-radius:10px; border:1px solid #e2e8f0;">
         <div class="details-inner" style="font-size:13px; line-height:1.5; color:#0f172a;"></div>
@@ -164,6 +173,7 @@
     const details = li.querySelector(".strategy-details");
     const inner = li.querySelector(".details-inner");
     const pre = li.querySelector(".strategy-json");
+    const editBtn = li.querySelector(".btn-edit");
 
     btn.addEventListener("click", () => {
       const open = details.style.display !== "none";
@@ -178,6 +188,13 @@
         btn.textContent = "Hide Details";
       }
     });
+
+    if (editBtn) {
+      editBtn.addEventListener("click", (evt) => {
+        evt.preventDefault();
+        startEditStrategy(item);
+      });
+    }
 
     list.appendChild(li);
   });
@@ -268,6 +285,32 @@
     document.head.appendChild(s);
   }
 }
+
+  function startEditStrategy(item) {
+    if (!item) return;
+    const payload = item.payload || item;
+    const strategy = cloneStrategyData(payload);
+    if (!strategy) return;
+
+    const bucket = item.bucket || item.Bucket || item.summary?.bucket;
+    const key = item.key || item.Key || item.object_key || item.objectKey || item.summary?.key;
+    const etag = item.etag || item.ETag || item.summary?.etag;
+    if (!strategy.__s3 && (bucket || key || etag)) {
+      strategy.__s3 = { bucket, key, etag };
+    }
+
+    navigate('create');
+
+    if (window.UltradarStrategyForm && typeof window.UltradarStrategyForm.prefillForEdit === 'function') {
+      window.UltradarStrategyForm.prefillForEdit(strategy);
+      requestAnimationFrame(() => {
+        const view = $(CREATE_VIEW_SELECTOR);
+        if (view) view.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    } else {
+      console.warn('Strategy form module not ready for editing.');
+    }
+  }
 
   async function loadStrategies(){
     const container = ensureStrategyContainer();
