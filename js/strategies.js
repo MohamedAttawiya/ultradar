@@ -155,32 +155,35 @@
 
     const li = document.createElement("li");
     li.className = "panel strategy-card";
-    li.innerHTML = `
-      <div class="strategy-card__header">
-        <h4 class="strategy-card__title">${escapeHtml(name)}</h4>
-        <div class="tagrow">
-          <span class="tag ${sod.enabled ? "tag-on" : "tag-off"}">SOD ${sod.enabled ? "ENABLED" : "OFF"}</span>
-          <span class="tag ${wod.enabled ? "tag-on" : "tag-off"}">WOD ${wod.enabled ? "ENABLED" : "OFF"}</span>
-        </div>
-      </div>
+li.innerHTML = `
+  <div class="strategy-card__header">
+    <h4 class="strategy-card__title">${escapeHtml(name)}</h4>
+    <div class="tagrow">
+      <span class="tag ${sod.enabled ? "tag-on" : "tag-off"}">SOD ${sod.enabled ? "ENABLED" : "OFF"}</span>
+      <span class="tag ${wod.enabled ? "tag-on" : "tag-off"}">WOD ${wod.enabled ? "ENABLED" : "OFF"}</span>
+    </div>
+  </div>
 
-      <ul class="strategy-card__meta">
-        <li><span class="strategy-card__label">ID</span><span class="strategy-card__value" title="${escapeHtml(id)}">${escapeHtml(id)}</span></li>
-        <li><span class="strategy-card__label">Name</span><span class="strategy-card__value">${escapeHtml(name)}</span></li>
-        <li><span class="strategy-card__label">Type</span><span class="strategy-card__value">${escapeHtml(type)}</span></li>
-        <li><span class="strategy-card__label">Created by</span><span class="strategy-card__value">${escapeHtml(createdBy)}</span></li>
-        <li><span class="strategy-card__label">Created at</span><span class="strategy-card__value">${escapeHtml(formatDate(createdAt))}</span></li>
-      </ul>
+  <ul class="strategy-card__meta">
+    <li><span class="strategy-card__label">ID</span><span class="strategy-card__value" title="${escapeHtml(id)}">${escapeHtml(id)}</span></li>
+    <li><span class="strategy-card__label">Name</span><span class="strategy-card__value">${escapeHtml(name)}</span></li>
+    <li><span class="strategy-card__label">Type</span><span class="strategy-card__value">${escapeHtml(type)}</span></li>
+    <li><span class="strategy-card__label">Created by</span><span class="strategy-card__value">${escapeHtml(createdBy)}</span></li>
+    <li><span class="strategy-card__label">Created at</span><span class="strategy-card__value">${escapeHtml(formatDate(createdAt))}</span></li>
+  </ul>
 
-      <div style="display:flex; gap:8px; margin-top:6px;">
-        <button class="btn-plain btn-json-toggle" type="button">View Details</button>
-        <button class="btn-chip btn-edit" type="button" data-key="${escapeHtml(resolveStrategyKey(item) || '')}">Edit</button>
-      </div>
-      <div class="strategy-details" style="display:none; margin-top:8px; padding:10px; background:#f8fafc; border-radius:10px; border:1px solid #e2e8f0;">
-        <div class="details-inner" style="font-size:13px; line-height:1.5; color:#0f172a;"></div>
-        <pre class="strategy-json" style="display:none; margin:8px 0 0; padding:8px; background:#0b1220; color:#e5e7eb; border-radius:8px; max-height:240px; overflow:auto; font-size:12px;"></pre>
-      </div>
-    `;
+  <div style="display:flex; gap:8px; margin-top:6px;">
+    <button class="btn-plain btn-json-toggle" type="button">View Details</button>
+    <button class="btn-chip btn-edit" type="button" data-key="${escapeHtml(resolveStrategyKey(item) || '')}">Edit</button>
+  </div>
+
+  <div class="strategy-details" style="display:none; margin-top:8px; padding:10px; background:#f8fafc; border-radius:10px; border:1px solid #e2e8f0;">
+    <div class="details-inner" style="font-size:13px; line-height:1.5; color:#0f172a;"></div>
+    <pre class="strategy-json" style="display:none; margin:8px 0 0; padding:8px; background:#0b1220; color:#e5e7eb; border-radius:8px; max-height:240px; overflow:auto; font-size:12px;"></pre>
+  </div>
+
+  <div class="version-chip">v${escapeHtml(meta.version ?? p.version ?? 1)}</div>
+`;
 
     const btn = li.querySelector(".btn-json-toggle");
     const details = li.querySelector(".strategy-details");
@@ -286,6 +289,7 @@
   }
 
   function ensureTagCss() {
+	  
     if (document.getElementById("ud-strategy-tags-css")) return;
     const s = document.createElement("style");
     s.id = "ud-strategy-tags-css";
@@ -295,6 +299,21 @@
              font-size:12px; font-weight:700; letter-spacing:.02em; }
       .tag-on  { background:rgba(16,185,129,.15); color:#065f46; border:1px solid rgba(16,185,129,.35); }
       .tag-off { background:#f1f5f9; color:#64748b; border:1px solid #e2e8f0; }
+	  .version-chip {
+	  position: absolute;
+	  bottom: 8px;
+	  right: 10px;
+	  background: #111827;
+	  color: #fff;
+	  font-size: 11px;
+	  font-weight: 700;
+	  border-radius: 12px;
+	  padding: 3px 8px;
+	  opacity: 0.85;
+	}
+	.strategy-card {
+	  position: relative; /* ensures chip is positioned inside card */
+	}
     `;
     document.head.appendChild(s);
   }
