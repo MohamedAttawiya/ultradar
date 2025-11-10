@@ -107,30 +107,34 @@
 
           <!-- EXCLUSIONS -->
             <div class="strategy-view" data-view="exclusions" role="tabpanel" aria-labelledby="exclusions">
-            <h3 style="margin:0 0 8px;">Exclusions</h3>
-            <p class="muted" style="margin:0 0 10px;">Manage global or per-strategy exclusions (stores, days, slots, holidays).</p>
+            <div class="exclusions-layout">
+              <section class="exclusions-builder panel" aria-labelledby="exclusionsBuilderTitle">
+                <div class="exclusions-builder__header">
+                  <div>
+                    <h3 id="exclusionsBuilderTitle">Exclusions</h3>
+                    <p class="muted">Manage global or scoped exclusions for stores, days, slots, or holidays.</p>
+                  </div>
+                  <button class="btn" type="button" data-action="create-exclusion">Create Exclusion</button>
+                </div>
+                <div class="exclusions-builder__body">
+                  <p class="muted" style="margin:0;">
+                    Use <strong>Create Exclusion</strong> to open the dedicated builder window. Select the dates to exclude,
+                    optionally target specific stores, and attach the exclusion to one or more strategies. Generated JSON
+                    definitions will appear below.
+                  </p>
+                </div>
+              </section>
 
-            <div class="controls" style="margin:10px 0 12px;">
-              <label class="control">
-                <span class="control__label">Scope</span>
-                <select class="control__input">
-                  <option value="">Global</option>
-                  <option>Per Strategy</option>
-                  <option>Per Store</option>
-                </select>
-              </label>
-              <label class="control" style="min-width:260px;flex:1;">
-                <span class="control__label">Rule</span>
-                <input class="control__input" type="text" placeholder="e.g., Exclude QDA3 on Fridays 18:00–22:00">
-              </label>
-              <button class="btn" type="button">Add</button>
-            </div>
-
-            <div class="panel" style="padding:10px;">
-              <ul style="margin:0;padding-left:18px;line-height:1.8;">
-                <li>Exclude store <code>QDA3</code> on Fridays (slots 18:00–22:00)</li>
-                <li>Exclude holiday <code>Eid</code> across all strategies</li>
-              </ul>
+              <section class="exclusions-board panel" aria-labelledby="exclusionsBoardTitle">
+                <header class="exclusions-board__header">
+                  <div>
+                    <h4 id="exclusionsBoardTitle">Current Exclusions</h4>
+                    <p class="muted">Review exclusions you have generated and what they attach to.</p>
+                  </div>
+                  <button class="btn-plain" type="button" data-action="reload-exclusions">Reload</button>
+                </header>
+                <div id="exclusion-list" class="exclusion-card-list" aria-live="polite"></div>
+              </section>
             </div>
           </div>
         </section>
