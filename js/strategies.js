@@ -17,13 +17,17 @@
 
   let strategiesLoaded = false;
   let strategiesLoading = false;
+  let lastActiveView = null;
+  let suppressNextHashChange = false;
+  let loadRequestId = 0;
 
   function currentFromHash(){
     const h = (location.hash || '').replace('#','');
     return VIEWS.includes(h) ? h : DEFAULT;
   }
 
-  function activate(view){
+  function activate(view, opts = {}){
+    const previousView = lastActiveView;
     LINKS.forEach(a => {
       const on = a.dataset.view === view;
       a.classList.toggle('is-active', on);
@@ -32,14 +36,23 @@
     });
     PANELS.forEach(p => { p.dataset.state = (p.dataset.view === view) ? 'active' : ''; });
 
-    if (view === 'edit') maybeLoadStrategies(view);
+    if (view === 'edit') {
+      const shouldForce = Boolean(opts.forceReload) || previousView !== 'edit';
+      loadStrategies({ force: shouldForce });
+    }
     if (view === 'create') mountForm();
+
+    lastActiveView = view;
   }
 
-  function navigate(view){
+  function navigate(view, opts = {}){
     if (!VIEWS.includes(view)) view = DEFAULT;
-    if (('#' + view) !== location.hash) location.hash = view;
-    activate(view);
+    const targetHash = '#' + view;
+    if (targetHash !== location.hash) {
+      suppressNextHashChange = true;
+      location.hash = view;
+    }
+    activate(view, opts);
     try { localStorage.setItem('ultradar.strategy.view', view); } catch {}
   }
 
@@ -459,10 +472,14 @@
     }
   }
 
-  async function loadStrategies(){
+  async function loadStrategies({ force = false } = {}){
     const container = ensureStrategyContainer();
-    if (!container || strategiesLoading || strategiesLoaded) return;
+    if (!container || strategiesLoading) return;
+    if (!force && strategiesLoaded) return;
+
     strategiesLoading = true;
+    if (force) strategiesLoaded = false;
+    const requestId = ++loadRequestId;
     renderStatus('Loading strategies…');
     try {
       const res = await fetch(STRATEGIES_URL, { headers: { 'Accept': 'application/json' } });
@@ -470,20 +487,18 @@
       let payload = await res.json();
       if (payload && typeof payload.body === 'string') { try { payload = JSON.parse(payload.body); } catch {} }
       const strategies = normalizeStrategies(payload);
-      renderStrategies(strategies);
-      strategiesLoaded = true;
+      if (requestId === loadRequestId) {
+        renderStrategies(strategies);
+        strategiesLoaded = true;
+      }
     } catch (e) {
       console.error('Failed to load strategies.', e);
       renderStatus('Failed to load strategies.');
     } finally {
-      strategiesLoading = false;
+      if (requestId === loadRequestId) {
+        strategiesLoading = false;
+      }
     }
-  }
-
-  function maybeLoadStrategies(view){
-    if (strategiesLoaded || strategiesLoading) return;
-    const target = view || currentFromHash();
-    if (target === 'edit') loadStrategies();
   }
 
   // Mount the create form using the module
@@ -508,5 +523,20 @@
   const hasExplicitHash = Boolean(location.hash);
   const start = hasExplicitHash ? currentFromHash() : (VIEWS.includes(saved) ? saved : currentFromHash());
   activate(start);
-  window.addEventListener('hashchange', () => activate(currentFromHash()));
+  window.addEventListener('hashchange', () => {
+    if (suppressNextHashChange) {
+      suppressNextHashChange = false;
+      return;
+    }
+    activate(currentFromHash());
+  });
+
+  window.UltradarStrategies = Object.assign(window.UltradarStrategies || {}, {
+    goToEditAndReload() {
+      navigate('edit', { forceReload: true });
+    },
+    reloadEdit() {
+      loadStrategies({ force: true });
+    }
+  });
 })();

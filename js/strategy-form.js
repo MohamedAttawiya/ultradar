@@ -431,6 +431,17 @@
 
       btnUpload.textContent = uploadSuccessLabel;
 
+      if (modal) {
+        modal.style.display = "none";
+      }
+
+      const strategiesApi = window.UltradarStrategies;
+      if (strategiesApi && typeof strategiesApi.goToEditAndReload === "function") {
+        strategiesApi.goToEditAndReload();
+      } else {
+        window.location.hash = "edit";
+      }
+
       if (state.mode === "edit") {
         ns.showSuccess("Strategy updated successfully.");
       }
