@@ -1,0 +1,246 @@
+.exclusions-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.exclusions-builder,
+.exclusions-board {
+  padding: 18px;
+}
+
+.exclusions-builder__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.exclusions-builder__header h3 {
+  margin: 0 0 4px;
+}
+
+.exclusions-builder__body {
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px dashed rgba(148, 163, 184, 0.6);
+  border-radius: 10px;
+  padding: 14px;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.exclusions-board__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.exclusions-board__header h4 {
+  margin: 0 0 4px;
+}
+
+.exclusion-card-list {
+  display: grid;
+  gap: 14px;
+}
+
+@media (min-width: 900px) {
+  .exclusion-card-list {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
+}
+
+.exclusion-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.05);
+}
+
+.exclusion-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.exclusion-card__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.exclusion-card__meta {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.exclusion-card__meta dt {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.exclusion-card__meta dd {
+  margin: 0;
+}
+
+.exclusion-card__json {
+  margin: 0;
+  padding: 12px;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 10px;
+  font-size: 12px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+/* Popup window styles */
+.body-exclusion-popup {
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f8fafc;
+  color: #0f172a;
+  margin: 0;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.exclusion-popup__frame {
+  max-width: 640px;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 24px 40px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.exclusion-popup__header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.exclusion-popup__header h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+}
+
+.exclusion-popup__body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.exclusion-popup__section h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  color: #0f172a;
+}
+
+.exclusion-popup__dates {
+  display: grid;
+  gap: 12px;
+}
+
+.exclusion-popup__date-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.exclusion-popup__chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.exclusion-popup__chip {
+  background: #e0f2fe;
+  color: #0369a1;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.exclusion-popup__chip button {
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.exclusion-popup__filters {
+  display: grid;
+  gap: 16px;
+}
+
+.exclusion-popup__filters textarea,
+.exclusion-popup__filters input,
+.exclusion-popup__filters select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #cbd5f5;
+  font-size: 14px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.exclusion-popup__filters label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: #1e293b;
+}
+
+.exclusion-popup__footer {
+  padding: 16px 24px 24px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.exclusion-popup__footer pre {
+  margin: 0;
+  padding: 12px;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 12px;
+  font-size: 12px;
+  max-height: 160px;
+  overflow: auto;
+  flex: 1 1 260px;
+}
+
+.exclusion-popup__footer .btn {
+  white-space: nowrap;
+}
+
+.exclusion-popup__hint {
+  font-size: 13px;
+  color: #64748b;
+}

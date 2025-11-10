@@ -10,16 +10,26 @@
 
   const API_BASE = "https://zp97gyooxk.execute-api.eu-central-1.amazonaws.com";
   const STRATEGIES_URL = `${API_BASE}/strategies?prefix=strategies/`;
+  const EXCLUSIONS_URL = `${API_BASE}/exclusions?prefix=exclusions/`;
 
   const EDIT_VIEW_SELECTOR   = '.strategy-view[data-view="edit"]';
   const CREATE_VIEW_SELECTOR = '.strategy-view[data-view="create"]';
   const STRATEGY_LIST_ID     = 'strategy-list';
+  const EXCLUSIONS_VIEW_SELECTOR = '.strategy-view[data-view="exclusions"]';
+  const EXCLUSION_LIST_ID = 'exclusion-list';
 
   let strategiesLoaded = false;
   let strategiesLoading = false;
+  let knownStrategies = [];
+  let exclusionsInitialized = false;
+  let exclusionsLoaded = false;
+  let exclusionsLoading = false;
+  let exclusionsData = [];
+  let exclusionStylesAttached = false;
   let lastActiveView = null;
   let suppressNextHashChange = false;
   let loadRequestId = 0;
+  let exclusionRequestId = 0;
 
   function currentFromHash(){
     const h = (location.hash || '').replace('#','');
@@ -41,6 +51,14 @@
       loadStrategies({ force: shouldForce });
     }
     if (view === 'create') mountForm();
+    if (view === 'exclusions') {
+      ensureExclusionStyles();
+      ensureExclusionsInitialized();
+      if (!strategiesLoaded && !strategiesLoading) {
+        loadStrategies();
+      }
+      loadExclusions();
+    }
 
     lastActiveView = view;
   }
@@ -219,6 +237,8 @@ li.innerHTML = `
   container.innerHTML = "";
   container.appendChild(list);
 
+  captureStrategySummaries(listData);
+
   // --- helpers ---
   function n2(x) {
     const v = Number(x);
@@ -289,7 +309,7 @@ li.innerHTML = `
   }
 
   function ensureTagCss() {
-	  
+
     if (document.getElementById("ud-strategy-tags-css")) return;
     const s = document.createElement("style");
     s.id = "ud-strategy-tags-css";
@@ -318,6 +338,614 @@ li.innerHTML = `
     document.head.appendChild(s);
   }
 }
+
+  function captureStrategySummaries(listData) {
+    if (!Array.isArray(listData)) {
+      knownStrategies = [];
+      return;
+    }
+    const seen = new Map();
+    listData.forEach((item) => {
+      const summary = deriveStrategySummary(item);
+      if (!summary) return;
+      const key = summary.id != null ? String(summary.id) : (summary.name || "");
+      if (!key) return;
+      if (!seen.has(key)) {
+        seen.set(key, summary);
+      }
+    });
+    knownStrategies = Array.from(seen.values());
+  }
+
+  function deriveStrategySummary(item) {
+    if (!item) return null;
+    const payload = unwrapPayload(item?.payload ?? item) || {};
+    const id = payload.strategy_id || payload.id || item.strategy_id || item.id || null;
+    const name = payload.name || item.name || payload.title || null;
+    if (id == null && !name) return null;
+    return {
+      id: id != null ? String(id) : null,
+      name: name || null
+    };
+  }
+
+  function findStrategyById(id) {
+    if (id == null) return null;
+    const idString = String(id);
+    return knownStrategies.find((entry) => entry.id != null && String(entry.id) === idString) || null;
+  }
+
+  function findStrategyByName(name) {
+    if (!name) return null;
+    const target = String(name).toLowerCase();
+    return knownStrategies.find((entry) => entry.name && entry.name.toLowerCase() === target) || null;
+  }
+
+  function ensureExclusionStyles() {
+    if (exclusionStylesAttached) return;
+    if (document.getElementById('ud-exclusions-css')) {
+      exclusionStylesAttached = true;
+      return;
+    }
+    try {
+      const href = new URL('../css/exclusions-form.css', location.href).href;
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = href;
+      link.id = 'ud-exclusions-css';
+      link.addEventListener('error', () => {
+        exclusionStylesAttached = false;
+        link.remove();
+      });
+      document.head.appendChild(link);
+      exclusionStylesAttached = true;
+    } catch (err) {
+      console.error('Failed to attach exclusions stylesheet.', err);
+    }
+  }
+
+  function ensureExclusionsInitialized() {
+    if (exclusionsInitialized) return;
+    const host = $(EXCLUSIONS_VIEW_SELECTOR);
+    if (!host) return;
+    const createBtn = host.querySelector('[data-action="create-exclusion"]');
+    if (createBtn) {
+      createBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        openExclusionWindow();
+      });
+    }
+    const reloadBtn = host.querySelector('[data-action="reload-exclusions"]');
+    if (reloadBtn) {
+      reloadBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        loadExclusions({ force: true });
+      });
+    }
+    exclusionsInitialized = true;
+  }
+
+  function ensureExclusionListContainer() {
+    const direct = document.getElementById(EXCLUSION_LIST_ID);
+    if (direct) return direct;
+    const host = $(EXCLUSIONS_VIEW_SELECTOR);
+    if (!host) return null;
+    return host.querySelector('#' + EXCLUSION_LIST_ID);
+  }
+
+  function renderExclusionStatus(message) {
+    const container = ensureExclusionListContainer();
+    if (!container) return;
+    container.innerHTML = `<p class="muted">${escapeHtml(message)}</p>`;
+  }
+
+  function normalizeExclusionPayload(payload) {
+    if (!payload) return [];
+    if (Array.isArray(payload)) return payload;
+    const keys = ['results', 'items', 'exclusions', 'data', 'body'];
+    for (const key of keys) {
+      const value = payload[key];
+      if (Array.isArray(value)) return value;
+      if (typeof value === 'string') {
+        const parsed = parseMaybeJson(value);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    }
+    return [];
+  }
+
+  function toStringArray(value) {
+    const result = [];
+    if (Array.isArray(value)) {
+      value.forEach((entry) => {
+        if (Array.isArray(entry)) {
+          entry.forEach((inner) => {
+            toStringArray(inner).forEach((token) => {
+              if (!result.includes(token)) result.push(token);
+            });
+          });
+        } else if (typeof entry === 'string') {
+          entry.split(',').forEach((piece) => {
+            const trimmed = piece.trim();
+            if (trimmed && !result.includes(trimmed)) result.push(trimmed);
+          });
+        } else if (typeof entry === 'number') {
+          const token = String(entry);
+          if (!result.includes(token)) result.push(token);
+        } else if (entry && typeof entry === 'object') {
+          const candidate = entry.name || entry.store || entry.store_id || entry.id || entry.value || null;
+          if (candidate != null) {
+            const token = String(candidate);
+            if (token && !result.includes(token)) result.push(token);
+          }
+        }
+      });
+      return result;
+    }
+    if (typeof value === 'string') {
+      value.split(',').forEach((piece) => {
+        const trimmed = piece.trim();
+        if (trimmed && !result.includes(trimmed)) result.push(trimmed);
+      });
+      return result;
+    }
+    if (typeof value === 'number') {
+      const token = String(value);
+      if (!result.includes(token)) result.push(token);
+    }
+    return result;
+  }
+
+  function coerceDateArray(source) {
+    const result = [];
+    const candidate = source?.dates ?? source?.date ?? source?.date_range ?? source?.date_ranges ?? source?.period ?? source?.periods ?? source?.calendar ?? source?.schedule?.dates;
+    (function collect(value) {
+      if (!value) return;
+      if (Array.isArray(value)) {
+        value.forEach((entry) => collect(entry));
+        return;
+      }
+      if (typeof value === 'string' || typeof value === 'number') {
+        toStringArray(value).forEach((token) => {
+          if (!result.includes(token)) result.push(token);
+        });
+        return;
+      }
+      if (typeof value === 'object') {
+        const start = value.start ?? value.from ?? value.begin ?? null;
+        const end = value.end ?? value.to ?? value.finish ?? null;
+        if (start || end) {
+          const label = `${start || '—'} → ${end || '—'}`;
+          if (!result.includes(label)) result.push(label);
+        }
+        if (value.date) collect(value.date);
+        if (value.dates) collect(value.dates);
+      }
+    })(candidate);
+    return result;
+  }
+
+  function coerceStoreTargets(source) {
+    const candidate = source?.filters?.stores ?? source?.stores ?? source?.store_names ?? source?.store_ids ?? source?.storeIds ?? source?.attachments?.stores;
+    return toStringArray(candidate);
+  }
+
+  function fillStrategySummary(entry) {
+    if (!entry) return null;
+    const partial = {
+      id: entry.id ?? entry.strategy_id ?? entry.value ?? entry.key ?? null,
+      name: entry.name ?? entry.label ?? entry.title ?? entry.text ?? null
+    };
+    if (partial.id != null) {
+      const matchById = findStrategyById(partial.id);
+      partial.id = String(partial.id);
+      if (matchById) {
+        partial.id = matchById.id != null ? String(matchById.id) : partial.id;
+        if (!partial.name && matchById.name) {
+          partial.name = matchById.name;
+        }
+      }
+    }
+    if (partial.name) {
+      const trimmed = String(partial.name).trim();
+      partial.name = trimmed;
+    }
+    if (!partial.id && partial.name) {
+      const matchByName = findStrategyByName(partial.name);
+      if (matchByName) {
+        if (matchByName.id != null && !partial.id) partial.id = String(matchByName.id);
+        if (matchByName.name && !partial.name) partial.name = matchByName.name;
+      }
+    }
+    if (!partial.name && partial.id != null) {
+      const matchId = findStrategyById(partial.id);
+      if (matchId && matchId.name) partial.name = matchId.name;
+    }
+    if (!partial.id && !partial.name) return null;
+    return {
+      id: partial.id != null ? String(partial.id) : null,
+      name: partial.name || null
+    };
+  }
+
+  function coerceStrategyTargets(source) {
+    const candidate = source?.filters?.strategies ?? source?.strategies ?? source?.strategy_ids ?? source?.strategyIds ?? source?.attachments?.strategies;
+    if (!candidate) return [];
+    const result = [];
+    const push = (value) => {
+      const summary = fillStrategySummary(value);
+      if (!summary) return;
+      const key = `${summary.id || ''}::${summary.name || ''}`.toLowerCase();
+      for (const existing of result) {
+        const existingKey = `${existing.id || ''}::${existing.name || ''}`.toLowerCase();
+        if (existingKey === key) return;
+      }
+      result.push(summary);
+    };
+    if (Array.isArray(candidate)) {
+      candidate.forEach((item) => {
+        if (typeof item === 'string' || typeof item === 'number') {
+          toStringArray(item).forEach((token) => push({ name: token }));
+        } else if (item && typeof item === 'object') {
+          push(item);
+        }
+      });
+    } else if (typeof candidate === 'string' || typeof candidate === 'number') {
+      toStringArray(candidate).forEach((token) => push({ name: token }));
+    } else if (candidate && typeof candidate === 'object') {
+      push(candidate);
+    }
+    return result;
+  }
+
+  function mapExclusion(entry) {
+    if (!entry) return null;
+    const base = unwrapPayload(entry?.payload ?? entry) || entry;
+    const raw = cloneStrategyData(base || entry || {});
+    if (!raw || typeof raw !== 'object') return null;
+    const stores = coerceStoreTargets(raw);
+    const strategies = coerceStrategyTargets(raw);
+    const dates = coerceDateArray(raw);
+    const createdAt = raw.created_at || raw.createdAt || raw.metadata?.created_at || entry.created_at || entry.createdAt || null;
+    const id = raw.exclusion_id || raw.id || entry.exclusion_id || entry.id || null;
+    const fallbackName = raw.name || raw.title || (stores.length ? `Store exclusion (${stores[0]}${stores.length > 1 ? ` +${stores.length - 1}` : ''})` : 'Global exclusion');
+    const name = fallbackName ? String(fallbackName) : (id ? `Exclusion ${id}` : 'Exclusion');
+    return {
+      id: id != null ? String(id) : null,
+      name,
+      createdAt,
+      dates,
+      stores,
+      strategies,
+      raw
+    };
+  }
+
+  async function loadExclusions({ force = false } = {}) {
+    if (exclusionsLoading) return;
+    if (exclusionsLoaded && !force) {
+      renderExclusionsList();
+      return;
+    }
+    const container = ensureExclusionListContainer();
+    if (!container) return;
+    exclusionsLoading = true;
+    const requestId = ++exclusionRequestId;
+    renderExclusionStatus('Loading exclusions…');
+    try {
+      const res = await fetch(EXCLUSIONS_URL, { headers: { 'Accept': 'application/json' } });
+      const text = await res.text();
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      let payload = text ? parseMaybeJson(text) : null;
+      if (payload && typeof payload.body === 'string') {
+        const nested = parseMaybeJson(payload.body);
+        if (nested != null) payload = nested;
+      }
+      const normalized = normalizeExclusionPayload(payload);
+      const mapped = normalized.map(mapExclusion).filter(Boolean);
+      if (requestId === exclusionRequestId) {
+        exclusionsData = mapped;
+        exclusionsLoaded = true;
+        if (!mapped.length) {
+          renderExclusionStatus('No exclusions available yet. Use Create Exclusion to add one.');
+        } else {
+          renderExclusionsList();
+        }
+      }
+    } catch (err) {
+      console.info('Failed to load exclusions.', err);
+      if (requestId === exclusionRequestId) {
+        if (!exclusionsData.length) {
+          renderExclusionStatus('Unable to load exclusions from the API. Create one to get started.');
+        } else {
+          renderExclusionsList();
+        }
+      }
+    } finally {
+      if (requestId === exclusionRequestId) {
+        exclusionsLoading = false;
+      }
+    }
+  }
+
+  function renderExclusionsList() {
+    const container = ensureExclusionListContainer();
+    if (!container) return;
+    if (!exclusionsData.length) {
+      container.innerHTML = '<p class="muted">No exclusions available yet. Use Create Exclusion to add one.</p>';
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    exclusionsData.forEach((entry, index) => {
+      const card = document.createElement('article');
+      card.className = 'exclusion-card';
+      const createdText = entry.createdAt ? formatDate(entry.createdAt) : '—';
+      const storeSummary = entry.stores && entry.stores.length ? entry.stores.join(', ') : 'Global';
+      const strategySummary = entry.strategies && entry.strategies.length
+        ? entry.strategies.map((s) => s.name || s.id).filter(Boolean).join(', ')
+        : 'All strategies';
+      const dateSummary = entry.dates && entry.dates.length ? entry.dates.join(', ') : '—';
+      const rawPayload = entry.raw != null ? entry.raw : entry;
+      card.innerHTML = `
+        <div class="exclusion-card__header">
+          <h5 class="exclusion-card__title">${escapeHtml(entry.name || `Exclusion ${index + 1}`)}</h5>
+          <span class="muted" style="font-size:12px;">${escapeHtml(createdText || '—')}</span>
+        </div>
+        <dl class="exclusion-card__meta">
+          <div><dt>ID</dt><dd>${escapeHtml(entry.id || '—')}</dd></div>
+          <div><dt>Dates</dt><dd>${escapeHtml(dateSummary)}</dd></div>
+          <div><dt>Stores</dt><dd>${escapeHtml(storeSummary)}</dd></div>
+          <div><dt>Strategies</dt><dd>${escapeHtml(strategySummary)}</dd></div>
+        </dl>
+        <pre class="exclusion-card__json">${escapeHtml(JSON.stringify(rawPayload, null, 2))}</pre>
+      `;
+      frag.appendChild(card);
+    });
+    container.innerHTML = '';
+    container.appendChild(frag);
+  }
+
+  function safePopupHref(relativePath) {
+    try {
+      const absolute = new URL(relativePath, location.href).href;
+      return absolute.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+    } catch (err) {
+      return relativePath;
+    }
+  }
+
+  function openExclusionWindow() {
+    const width = 720;
+    const height = 760;
+    const left = typeof window.screenX === 'number' && typeof window.outerWidth === 'number'
+      ? window.screenX + Math.max(0, (window.outerWidth - width) / 2)
+      : 120;
+    const top = typeof window.screenY === 'number' && typeof window.outerHeight === 'number'
+      ? window.screenY + Math.max(0, (window.outerHeight - height) / 2)
+      : 80;
+    const specs = `width=${Math.round(width)},height=${Math.round(height)},left=${Math.round(left)},top=${Math.round(top)},resizable=yes,scrollbars=yes`;
+    const popup = window.open('', 'ultradar-exclusion-builder', specs);
+    if (!popup) {
+      alert('Please allow pop-ups to create exclusions.');
+      return;
+    }
+    const doc = popup.document;
+    const cssHref = safePopupHref('../css/exclusions-form.css');
+    const strategiesPayload = JSON.stringify(knownStrategies || []).replace(/</g, '\\u003c');
+    const html = String.raw`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Create Exclusion</title>
+  <link rel="stylesheet" href="${cssHref}">
+</head>
+<body class="body-exclusion-popup">
+  <div class="exclusion-popup__frame" role="dialog" aria-modal="true">
+    <header class="exclusion-popup__header">
+      <h2>Create Exclusion</h2>
+      <p class="exclusion-popup__hint">Select the days to exclude, choose filters, and generate the JSON payload.</p>
+    </header>
+    <main class="exclusion-popup__body">
+      <section class="exclusion-popup__section" aria-labelledby="exclusion-calendar-title">
+        <h3 id="exclusion-calendar-title">Calendar</h3>
+        <div class="exclusion-popup__dates">
+          <div>
+            <label for="exclusion-date-input">Pick a date to add</label>
+            <div class="exclusion-popup__date-row">
+              <input id="exclusion-date-input" type="date" />
+              <button class="btn" type="button" id="exclusion-add-date">Add date</button>
+            </div>
+            <p class="exclusion-popup__hint">Add multiple non-consecutive days if needed. Each click adds the selected day to the exclusion list.</p>
+          </div>
+          <div id="exclusion-date-chips" class="exclusion-popup__chips"></div>
+        </div>
+      </section>
+      <section class="exclusion-popup__section" aria-labelledby="exclusion-filters-title">
+        <h3 id="exclusion-filters-title">Filters</h3>
+        <div class="exclusion-popup__filters">
+          <label for="exclusion-store-field">
+            <span>Attach to Store</span>
+            <span class="exclusion-popup__hint">Write store names to apply exclusion on separated by "," - leave empty for global exclusion</span>
+            <textarea id="exclusion-store-field" rows="2" placeholder="QDA3, QDA8"></textarea>
+          </label>
+          <label for="exclusion-strategy-select">
+            <span>Attach to strategy</span>
+            <select id="exclusion-strategy-select" multiple size="6"></select>
+            <span class="exclusion-popup__hint">Select multiple strategies or leave empty to target all strategies.</span>
+          </label>
+        </div>
+      </section>
+    </main>
+    <footer class="exclusion-popup__footer">
+      <button class="btn" type="button" id="exclusion-generate">Generate .json</button>
+      <pre id="exclusion-json-output">{
+}</pre>
+      <div class="exclusion-popup__hint" id="exclusion-popup-status">Select dates and filters, then generate the JSON payload.</div>
+    </footer>
+  </div>
+  <script>
+    (function(){
+      const strategies = ${strategiesPayload};
+      const doc = document;
+      const dateInput = doc.getElementById('exclusion-date-input');
+      const addDateBtn = doc.getElementById('exclusion-add-date');
+      const chipsHost = doc.getElementById('exclusion-date-chips');
+      const storeField = doc.getElementById('exclusion-store-field');
+      const strategySelect = doc.getElementById('exclusion-strategy-select');
+      const generateBtn = doc.getElementById('exclusion-generate');
+      const jsonOutput = doc.getElementById('exclusion-json-output');
+      const statusEl = doc.getElementById('exclusion-popup-status');
+      const selectedDates = new Set();
+
+      function notifyStatus(message) {
+        if (statusEl) statusEl.textContent = message;
+      }
+
+      function renderStrategiesOptions() {
+        if (!strategySelect) return;
+        strategySelect.innerHTML = '';
+        if (!Array.isArray(strategies) || !strategies.length) {
+          const option = doc.createElement('option');
+          option.disabled = true;
+          option.textContent = 'No strategies available';
+          strategySelect.appendChild(option);
+          return;
+        }
+        strategies.forEach((entry) => {
+          const option = doc.createElement('option');
+          option.value = entry.id || entry.name || '';
+          option.textContent = entry.name || entry.id || 'Unnamed strategy';
+          if (entry.name) option.dataset.name = entry.name;
+          if (entry.id != null) option.dataset.id = entry.id;
+          strategySelect.appendChild(option);
+        });
+      }
+
+      function renderDateChips() {
+        if (!chipsHost) return;
+        chipsHost.innerHTML = '';
+        const values = Array.from(selectedDates).sort();
+        if (!values.length) {
+          const hint = doc.createElement('span');
+          hint.className = 'exclusion-popup__hint';
+          hint.textContent = 'No dates selected yet.';
+          chipsHost.appendChild(hint);
+          return;
+        }
+        values.forEach((value) => {
+          const chip = doc.createElement('span');
+          chip.className = 'exclusion-popup__chip';
+          chip.textContent = value;
+          const removeBtn = doc.createElement('button');
+          removeBtn.type = 'button';
+          removeBtn.setAttribute('aria-label', 'Remove ' + value);
+          removeBtn.textContent = '×';
+          removeBtn.addEventListener('click', () => {
+            selectedDates.delete(value);
+            renderDateChips();
+          });
+          chip.appendChild(removeBtn);
+          chipsHost.appendChild(chip);
+        });
+      }
+
+      function addDateFromInput() {
+        if (!dateInput) return;
+        const value = dateInput.value;
+        if (!value) {
+          notifyStatus('Select a date before adding it to the exclusion.');
+          return;
+        }
+        selectedDates.add(value);
+        dateInput.value = '';
+        renderDateChips();
+      }
+
+      if (addDateBtn) {
+        addDateBtn.addEventListener('click', (event) => {
+          event.preventDefault();
+          addDateFromInput();
+        });
+      }
+      if (dateInput) {
+        dateInput.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            addDateFromInput();
+          }
+        });
+      }
+
+      if (generateBtn) {
+        generateBtn.addEventListener('click', () => {
+          if (!selectedDates.size) {
+            notifyStatus('Please add at least one date before generating the JSON payload.');
+            return;
+          }
+          const storeValue = (storeField && storeField.value ? storeField.value : '').trim();
+          const storeNames = storeValue ? storeValue.split(',').map((part) => part.trim()).filter(Boolean) : [];
+          const strategyOptions = strategySelect ? Array.from(strategySelect.selectedOptions) : [];
+          const selectedStrategies = strategyOptions.map((opt) => ({
+            id: opt.dataset.id || opt.value || null,
+            name: opt.dataset.name || opt.textContent || opt.value || null
+          })).filter((entry) => entry.id || entry.name);
+          const payload = {
+            name: storeNames.length ? 'Store exclusion' : 'Global exclusion',
+            description: 'Manual exclusion generated from the Strategies page.',
+            exclusion_id: 'temp-' + Date.now(),
+            created_at: new Date().toISOString(),
+            dates: Array.from(selectedDates),
+            filters: {
+              stores: storeNames,
+              strategies: selectedStrategies
+            }
+          };
+          jsonOutput.textContent = JSON.stringify(payload, null, 2);
+          let pushed = false;
+          try {
+            if (window.opener && !window.opener.closed && window.opener.UltradarExclusions && typeof window.opener.UltradarExclusions.createExclusion === 'function') {
+              window.opener.UltradarExclusions.createExclusion(payload);
+              pushed = true;
+            }
+          } catch (err) {
+            console.error('Failed to notify Ultradar about the new exclusion.', err);
+          }
+          notifyStatus(pushed ? 'JSON generated and sent to Ultradar.' : 'JSON generated. Copy it or keep this window open.');
+        });
+      }
+
+      renderStrategiesOptions();
+      renderDateChips();
+    })();
+  <\/script>
+</body>
+</html>`;
+    doc.open();
+    doc.write(html);
+    doc.close();
+    popup.focus();
+  }
+
+  function applyCreatedExclusion(definition) {
+    const normalized = mapExclusion(definition);
+    if (!normalized) return;
+    if (!normalized.raw) {
+      normalized.raw = cloneStrategyData(definition);
+    }
+    const id = normalized.id;
+    if (id) {
+      const existingIndex = exclusionsData.findIndex((item) => item.id === id);
+      if (existingIndex >= 0) {
+        exclusionsData[existingIndex] = normalized;
+      } else {
+        exclusionsData.unshift(normalized);
+      }
+    } else {
+      exclusionsData.unshift(normalized);
+    }
+    exclusionsLoaded = true;
+    renderExclusionsList();
+  }
 
   async function startEditStrategy(item, keyHint) {
     const formModule = window.UltradarStrategyForm;
@@ -556,6 +1184,13 @@ li.innerHTML = `
     },
     reloadEdit() {
       loadStrategies({ force: true });
+    }
+  });
+
+  window.UltradarExclusions = Object.assign(window.UltradarExclusions || {}, {
+    createExclusion: applyCreatedExclusion,
+    getKnownStrategies() {
+      return knownStrategies.slice();
     }
   });
 })();
