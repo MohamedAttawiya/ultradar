@@ -288,9 +288,12 @@
 
   function startEditStrategy(item) {
     if (!item) return;
-    const payload = item.payload || item;
-    const strategy = cloneStrategyData(payload);
-    if (!strategy) return;
+
+    const strategy = extractStrategyPayload(item);
+    if (!strategy) {
+      console.warn('Unable to determine strategy payload for edit.', item);
+      return;
+    }
 
     const bucket = item.bucket || item.Bucket || item.summary?.bucket;
     const key = item.key || item.Key || item.object_key || item.objectKey || item.summary?.key;
@@ -309,6 +312,84 @@
       });
     } else {
       console.warn('Strategy form module not ready for editing.');
+    }
+  }
+
+  function extractStrategyPayload(item) {
+    const base = unwrapPayload(item?.payload ?? item);
+    if (!base || typeof base !== 'object') return null;
+
+    const strategy = cloneStrategyData(base);
+
+    if (!strategy.parameters && item?.parameters) {
+      strategy.parameters = cloneStrategyData(item.parameters);
+    }
+    if (!strategy.volatility && item?.volatility) {
+      strategy.volatility = cloneStrategyData(item.volatility);
+    }
+    if (!strategy.constraints && item?.constraints) {
+      strategy.constraints = cloneStrategyData(item.constraints);
+    }
+
+    const fallbackName = item?.name || item?.summary?.name;
+    if (fallbackName && !strategy.name) strategy.name = fallbackName;
+
+    const fallbackId = item?.strategy_id || item?.summary?.strategy_id;
+    if (fallbackId && !strategy.strategy_id) strategy.strategy_id = fallbackId;
+
+    const fallbackDesc = item?.description || item?.summary?.description;
+    if (fallbackDesc && !strategy.description) strategy.description = fallbackDesc;
+
+    const outerMeta = item?.metadata || item?.summary?.metadata;
+    if (outerMeta && typeof outerMeta === 'object') {
+      strategy.metadata = { ...outerMeta, ...(strategy.metadata || {}) };
+    }
+
+    return strategy;
+  }
+
+  function unwrapPayload(value) {
+    const seen = new Set();
+
+    function dive(candidate) {
+      if (!candidate) return null;
+
+      if (typeof candidate === 'string') {
+        const parsed = parseMaybeJson(candidate);
+        return parsed ? dive(parsed) : null;
+      }
+
+      if (typeof candidate !== 'object') return null;
+      if (seen.has(candidate)) return null;
+      seen.add(candidate);
+
+      if (Array.isArray(candidate)) {
+        for (const entry of candidate) {
+          const result = dive(entry);
+          if (result) return result;
+        }
+        return null;
+      }
+
+      const nestedKeys = ['payload', 'Payload', 'body', 'Body', 'data', 'strategy', 'item'];
+      for (const key of nestedKeys) {
+        if (candidate[key] != null) {
+          const nested = dive(candidate[key]);
+          if (nested) return nested;
+        }
+      }
+
+      return candidate;
+    }
+
+    return dive(value);
+  }
+
+  function parseMaybeJson(str) {
+    try {
+      return JSON.parse(str);
+    } catch (err) {
+      return null;
     }
   }
 
