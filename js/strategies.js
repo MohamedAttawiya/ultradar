@@ -32,7 +32,7 @@
     });
     PANELS.forEach(p => { p.dataset.state = (p.dataset.view === view) ? 'active' : ''; });
 
-    if (view === 'edit') maybeLoadStrategies();
+    if (view === 'edit') maybeLoadStrategies(view);
     if (view === 'create') mountForm();
   }
 
@@ -480,9 +480,10 @@
     }
   }
 
-  function maybeLoadStrategies(){
+  function maybeLoadStrategies(view){
     if (strategiesLoaded || strategiesLoading) return;
-    if (window.location.hash === '#edit') loadStrategies();
+    const target = view || currentFromHash();
+    if (target === 'edit') loadStrategies();
   }
 
   // Mount the create form using the module
@@ -504,7 +505,8 @@
   }));
 
   const saved = (() => { try { return localStorage.getItem('ultradar.strategy.view'); } catch { return null; } })();
-  const start = VIEWS.includes(saved) ? saved : currentFromHash();
+  const hasExplicitHash = Boolean(location.hash);
+  const start = hasExplicitHash ? currentFromHash() : (VIEWS.includes(saved) ? saved : currentFromHash());
   activate(start);
   window.addEventListener('hashchange', () => activate(currentFromHash()));
 })();
