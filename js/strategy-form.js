@@ -13,11 +13,16 @@
     cancelBtn: null,
     editBanner: null,
     editTarget: null,
+    statusEl: null,
     mode: "create",
     original: null,
     originalS3: null,
     pendingMode: null,
-    pendingPayload: null
+    pendingPayload: null,
+    pendingStatus: null,
+    pendingDisabled: null,
+    statusMessage: "",
+    statusType: "info"
   };
 
   ns.mount = function (hostEl) {
@@ -37,6 +42,18 @@
     state.cancelBtn = form.querySelector("#ud-cancel-edit");
     state.editBanner = form.querySelector("#ud-edit-banner");
     state.editTarget = form.querySelector("#ud-edit-target");
+    state.statusEl = form.querySelector("#ud-form-status");
+    if (state.pendingStatus) {
+      state.statusMessage = state.pendingStatus.message;
+      state.statusType = state.pendingStatus.type;
+      state.pendingStatus = null;
+    }
+    applyStatus();
+    if (state.pendingDisabled != null) {
+      const flag = state.pendingDisabled;
+      state.pendingDisabled = null;
+      setFormDisabled(flag);
+    }
     wire(form, svgMain, svgSlot, svgWod, btn);
     if (state.pendingMode) {
       const pendingMode = state.pendingMode;
@@ -50,12 +67,41 @@
   };
 
   ns.prefillForEdit = function (strategy) {
-    setMode("edit", strategy);
+    ns.load(strategy);
+  };
+
+  ns.load = function (payload) {
+    if (!payload) return;
+    clearStatus();
+    setFormDisabled(false);
+    setMode("edit", payload);
+    requestAnimationFrame(() => {
+      if (!state.host) return;
+      const panel = state.host.closest(".strategy-view");
+      if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   };
 
   ns.resetToCreate = function () {
+    clearStatus();
     setMode("create");
   };
+
+  ns.showLoading = function (message) {
+    setStatus(message || "Loading strategy…", "loading");
+    setFormDisabled(true);
+  };
+
+  ns.showError = function (message) {
+    setStatus(message || "", "error");
+    setFormDisabled(false);
+  };
+
+  ns.showSuccess = function (message) {
+    setStatus(message || "", "success");
+  };
+
+  ns.clearStatus = clearStatus;
 
   // ---------- Template ----------
   function template() {
@@ -99,6 +145,8 @@
       #ud-edit-banner .icon { font-size:14px; line-height:1; }
       #ud-edit-target { font-weight:700; }
       .btn-secondary { background:#fff; color:#475569; border:1px solid var(--neutral); border-radius:10px; padding:10px 16px; font-weight:600; cursor:pointer; }
+      #ud-form-status { font-size:13px; margin:10px 0 0; display:none; }
+      #ud-strategy-form.ud-form-disabled { opacity:0.65; }
     `;
 
     return `
@@ -112,6 +160,8 @@
             You are editing <span id="ud-edit-target"></span>. Confirm to upload a new version to S3.
           </div>
         </div>
+
+        <div id="ud-form-status" role="status" aria-live="polite"></div>
 
         <div class="fieldset">
           <label class="inline"><div>Strategy ID</div><input class="pill" name="strategy_id" placeholder="Auto-generated UUID" /></label>
@@ -381,6 +431,10 @@
 
       btnUpload.textContent = uploadSuccessLabel;
 
+      if (state.mode === "edit") {
+        ns.showSuccess("Strategy updated successfully.");
+      }
+
       // Show where it was stored
       const pre = document.getElementById("ud-json-pre");
       if (pre && data?.bucket && data?.key) {
@@ -394,6 +448,9 @@
       const pre = document.getElementById("ud-json-pre");
       if (pre) pre.textContent += `\n\n// Upload failed: ${msg}`;
       else alert(`Upload failed: ${msg}`);
+      if (state.mode === "edit") {
+        ns.showError("Failed to upload strategy.");
+      }
     }
   };
 });
@@ -437,6 +494,10 @@
 
     if (form && state.svgMain && state.svgSlot && state.svgWod && state.submitBtn) {
       renderAll(form, state.svgMain, state.svgSlot, state.svgWod, state.submitBtn);
+    }
+
+    if (normalizedMode !== "edit") {
+      setFormDisabled(false);
     }
   }
 
@@ -487,6 +548,7 @@
     setVal(form.elements.strategy_id, strategy.strategy_id || "");
     setVal(form.elements.name, strategy.name || "");
     setVal(form.elements.description, strategy.description || "");
+    setVal(form.elements.type, strategy.type || strategy.parameters?.type || "decay");
     setVal(form.elements.created_by, metadata.edited_by || metadata.created_by || "");
 
     if (params.lookback_weeks != null) {
@@ -585,6 +647,73 @@
          </div>`
       );
     }
+  }
+
+  function setFormDisabled(disabled) {
+    if (!state.form) {
+      state.pendingDisabled = disabled;
+      return;
+    }
+    const elements = state.form.querySelectorAll("input, textarea, select, button");
+    elements.forEach((el) => {
+      if (el.closest("#ud-json-modal")) return;
+      if (el.id === "ud-json-upload") return;
+      if (disabled) {
+        el.dataset.prevDisabled = el.disabled ? "1" : "0";
+        el.disabled = true;
+      } else {
+        if (el.dataset.prevDisabled === "1") {
+          el.disabled = true;
+        } else {
+          el.disabled = false;
+        }
+        delete el.dataset.prevDisabled;
+      }
+    });
+    if (disabled) {
+      state.form.setAttribute("aria-busy", "true");
+      state.form.classList.add("ud-form-disabled");
+    } else {
+      state.form.removeAttribute("aria-busy");
+      state.form.classList.remove("ud-form-disabled");
+    }
+  }
+
+  function setStatus(message, type) {
+    state.statusMessage = message || "";
+    state.statusType = type || "info";
+    if (!state.statusEl) {
+      state.pendingStatus = { message: state.statusMessage, type: state.statusType };
+      return;
+    }
+    applyStatus();
+  }
+
+  function clearStatus() {
+    state.statusMessage = "";
+    state.statusType = "info";
+    if (!state.statusEl) {
+      state.pendingStatus = { message: "", type: "info" };
+      return;
+    }
+    applyStatus();
+  }
+
+  function applyStatus() {
+    if (!state.statusEl) return;
+    const msg = state.statusMessage;
+    if (!msg) {
+      state.statusEl.style.display = "none";
+      state.statusEl.textContent = "";
+      return;
+    }
+    state.statusEl.style.display = "";
+    state.statusEl.textContent = msg;
+    let color = "#475569";
+    if (state.statusType === "error") color = "#b91c1c";
+    else if (state.statusType === "success") color = "#047857";
+    else if (state.statusType === "loading") color = "#2563eb";
+    state.statusEl.style.color = color;
   }
 
   // ---------- Render orchestrator ----------

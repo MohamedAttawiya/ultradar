@@ -161,7 +161,7 @@
 
       <div style="display:flex; gap:8px; margin-top:6px;">
         <button class="btn-plain btn-json-toggle" type="button">View Details</button>
-        <button class="btn-chip btn-edit" type="button">Edit</button>
+        <button class="btn-chip btn-edit" type="button" data-key="${escapeHtml(resolveStrategyKey(item) || '')}">Edit</button>
       </div>
       <div class="strategy-details" style="display:none; margin-top:8px; padding:10px; background:#f8fafc; border-radius:10px; border:1px solid #e2e8f0;">
         <div class="details-inner" style="font-size:13px; line-height:1.5; color:#0f172a;"></div>
@@ -192,7 +192,8 @@
     if (editBtn) {
       editBtn.addEventListener("click", (evt) => {
         evt.preventDefault();
-        startEditStrategy(item);
+        const key = editBtn.dataset.key || undefined;
+        startEditStrategy(item, key);
       });
     }
 
@@ -286,32 +287,84 @@
   }
 }
 
-  function startEditStrategy(item) {
-    if (!item) return;
-
-    const strategy = extractStrategyPayload(item);
-    if (!strategy) {
-      console.warn('Unable to determine strategy payload for edit.', item);
+  async function startEditStrategy(item, keyHint) {
+    const formModule = window.UltradarStrategyForm;
+    const key = keyHint || resolveStrategyKey(item);
+    if (!key) {
+      console.warn('Edit requested but no S3 key was present.', item);
+      if (formModule && typeof formModule.showError === 'function') {
+        formModule.showError('Failed to load strategy.');
+      }
       return;
-    }
-
-    const bucket = item.bucket || item.Bucket || item.summary?.bucket;
-    const key = item.key || item.Key || item.object_key || item.objectKey || item.summary?.key;
-    const etag = item.etag || item.ETag || item.summary?.etag;
-    if (!strategy.__s3 && (bucket || key || etag)) {
-      strategy.__s3 = { bucket, key, etag };
     }
 
     navigate('create');
 
-    if (window.UltradarStrategyForm && typeof window.UltradarStrategyForm.prefillForEdit === 'function') {
-      window.UltradarStrategyForm.prefillForEdit(strategy);
-      requestAnimationFrame(() => {
-        const view = $(CREATE_VIEW_SELECTOR);
-        if (view) view.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-    } else {
-      console.warn('Strategy form module not ready for editing.');
+    if (formModule && typeof formModule.showLoading === 'function') {
+      formModule.showLoading('Loading strategy…');
+    }
+
+    try {
+      const url = `${API_BASE}/strategy?key=${encodeURIComponent(key)}`;
+      const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      const text = await res.text();
+      let data = {};
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch (err) {
+          console.warn('Failed to parse strategy response JSON.', err);
+          data = { payload: parseMaybeJson(text) || null };
+        }
+      }
+      if (!res.ok) {
+        const errMsg = data?.error || text || `HTTP ${res.status}`;
+        throw new Error(errMsg);
+      }
+
+      if (data && typeof data.body === 'string') {
+        const parsedBody = parseMaybeJson(data.body);
+        if (parsedBody) data = parsedBody;
+      }
+
+      let payload = data?.payload ?? data?.strategy ?? data?.item ?? null;
+      if (payload && typeof payload === 'string') {
+        payload = parseMaybeJson(payload);
+      }
+      if (!payload || typeof payload !== 'object') {
+        throw new Error('Missing payload');
+      }
+
+      const strategy = cloneStrategyData(payload);
+      const fallback = extractStrategyPayload(item) || {};
+
+      if (fallback.metadata) {
+        const fallbackMeta = cloneStrategyData(fallback.metadata);
+        strategy.metadata = { ...fallbackMeta, ...(strategy.metadata || {}) };
+      }
+      if (!strategy.parameters && fallback.parameters) strategy.parameters = cloneStrategyData(fallback.parameters);
+      if (!strategy.volatility && fallback.volatility) strategy.volatility = cloneStrategyData(fallback.volatility);
+      if (!strategy.constraints && fallback.constraints) strategy.constraints = cloneStrategyData(fallback.constraints);
+      if (!strategy.name && fallback.name) strategy.name = fallback.name;
+      if (!strategy.strategy_id && fallback.strategy_id) strategy.strategy_id = fallback.strategy_id;
+      if (!strategy.description && fallback.description) strategy.description = fallback.description;
+
+      const bucket = data.bucket || fallback?.__s3?.bucket || item?.bucket || item?.Bucket || item?.summary?.bucket || null;
+      const etag = data.etag || fallback?.__s3?.etag || item?.etag || item?.ETag || item?.summary?.etag || null;
+      strategy.__s3 = { bucket, key: data.key || key, etag };
+
+      if (formModule && typeof formModule.load === 'function') {
+        formModule.load(strategy);
+      } else {
+        console.warn('Strategy form module not ready for editing.');
+      }
+    } catch (err) {
+      console.error('Failed to load strategy.', err);
+      if (formModule && typeof formModule.showError === 'function') {
+        formModule.showError('Failed to load strategy.');
+      } else {
+        alert('Failed to load strategy.');
+      }
     }
   }
 
@@ -346,6 +399,19 @@
     }
 
     return strategy;
+  }
+
+  function resolveStrategyKey(item) {
+    if (!item) return null;
+    return (
+      item.key ||
+      item.Key ||
+      item.object_key ||
+      item.objectKey ||
+      item.summary?.key ||
+      item.payload?.key ||
+      null
+    );
   }
 
   function unwrapPayload(value) {
