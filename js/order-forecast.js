@@ -83,7 +83,6 @@
         throw new Error(`Request failed with status ${res.status}`);
       }
       const data = await res.json();
-      latestForecast = data;
       renderForecast(data);
       if (!silent) {
         setStatus('success', 'Latest forecast loaded.');
@@ -116,7 +115,6 @@
       const parsed = parseForecastCsv(text);
       const payload = buildForecastPayload(parsed.columns, parsed.rows);
       await uploadForecast(payload);
-      latestForecast = payload;
       renderForecast(payload);
       setStatus('success', 'Forecast uploaded successfully.');
       if (els.form) {
@@ -150,7 +148,8 @@
   }
 
   function renderForecast(data) {
-    if (!data || !Array.isArray(data.rows) || !Array.isArray(data.columns)) {
+    const payload = extractForecastPayload(data);
+    if (!payload || !Array.isArray(payload.rows) || !Array.isArray(payload.columns)) {
       els.tableWrap.hidden = true;
       if (els.meta) {
         els.meta.textContent = '';
@@ -165,16 +164,19 @@
       return;
     }
 
-    renderMetadata(data.metadata || {});
-    renderTable(data.columns, data.rows);
-    renderRawJson(data);
+    latestForecast = payload;
+    const sourceInfo = data && data.payload ? data : null;
+
+    renderMetadata(payload.metadata || {}, sourceInfo);
+    renderTable(payload.columns, payload.rows);
+    renderRawJson(payload);
 
     if (els.downloadBtn) {
       els.downloadBtn.hidden = false;
     }
   }
 
-  function renderMetadata(metadata) {
+  function renderMetadata(metadata, sourceInfo) {
     if (!els.meta) return;
     const parts = [];
     if (metadata.generated_at) {
@@ -187,6 +189,9 @@
     }
     if (metadata.note) {
       parts.push(metadata.note);
+    }
+    if (sourceInfo && typeof sourceInfo === 'object' && sourceInfo.bucket && sourceInfo.key) {
+      parts.push(`Source: s3://${sourceInfo.bucket}/${sourceInfo.key}`);
     }
     els.meta.textContent = parts.join(' • ');
     els.meta.hidden = parts.length === 0;
@@ -235,6 +240,14 @@
     els.rawDetails.hidden = false;
     els.rawDetails.open = false;
     els.rawPre.textContent = JSON.stringify(data, null, 2);
+  }
+
+  function extractForecastPayload(data) {
+    if (!data) return null;
+    if (data && typeof data === 'object' && 'payload' in data && data.payload) {
+      return data.payload;
+    }
+    return data;
   }
 
   function handleDownloadClick() {
