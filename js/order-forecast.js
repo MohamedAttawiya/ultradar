@@ -10,12 +10,9 @@
     els.refreshBtn = document.getElementById('orderForecastRefresh');
     els.downloadBtn = document.getElementById('orderForecastDownload');
     els.status = document.getElementById('orderForecastMessage');
-    els.meta = document.getElementById('orderForecastMeta');
     els.tableWrap = document.getElementById('orderForecastTableWrap');
     els.tableHead = document.querySelector('#orderForecastTable thead');
     els.tableBody = document.querySelector('#orderForecastTable tbody');
-    els.rawDetails = document.getElementById('orderForecastRaw');
-    els.rawPre = document.getElementById('orderForecastJson');
     els.form = document.getElementById('orderForecastForm');
     els.fileInput = document.getElementById('orderForecastFile');
 
@@ -35,8 +32,7 @@
       els.form.addEventListener('submit', handleUploadSubmit);
     }
 
-    // Try to load on first paint for immediate context.
-    loadLatestForecast({ silent: true });
+    loadLatestForecast();
   });
 
   function setStatus(state, message) {
@@ -151,13 +147,6 @@
     const payload = extractForecastPayload(data);
     if (!payload || !Array.isArray(payload.rows) || !Array.isArray(payload.columns)) {
       els.tableWrap.hidden = true;
-      if (els.meta) {
-        els.meta.textContent = '';
-        els.meta.hidden = true;
-      }
-      if (els.rawDetails) {
-        els.rawDetails.hidden = true;
-      }
       if (els.downloadBtn) {
         els.downloadBtn.hidden = true;
       }
@@ -165,36 +154,11 @@
     }
 
     latestForecast = payload;
-    const sourceInfo = data && data.payload ? data : null;
-
-    renderMetadata(payload.metadata || {}, sourceInfo);
     renderTable(payload.columns, payload.rows);
-    renderRawJson(payload);
 
     if (els.downloadBtn) {
       els.downloadBtn.hidden = false;
     }
-  }
-
-  function renderMetadata(metadata, sourceInfo) {
-    if (!els.meta) return;
-    const parts = [];
-    if (metadata.generated_at) {
-      const dt = new Date(metadata.generated_at);
-      const formatted = Number.isNaN(dt.getTime()) ? metadata.generated_at : dt.toLocaleString();
-      parts.push(`Generated ${formatted}`);
-    }
-    if (metadata.units) {
-      parts.push(`Units: ${metadata.units}`);
-    }
-    if (metadata.note) {
-      parts.push(metadata.note);
-    }
-    if (sourceInfo && typeof sourceInfo === 'object' && sourceInfo.bucket && sourceInfo.key) {
-      parts.push(`Source: s3://${sourceInfo.bucket}/${sourceInfo.key}`);
-    }
-    els.meta.textContent = parts.join(' • ');
-    els.meta.hidden = parts.length === 0;
   }
 
   function renderTable(columns, rows) {
@@ -235,12 +199,6 @@
     els.tableWrap.hidden = false;
   }
 
-  function renderRawJson(data) {
-    if (!els.rawDetails || !els.rawPre) return;
-    els.rawDetails.hidden = false;
-    els.rawDetails.open = false;
-    els.rawPre.textContent = JSON.stringify(data, null, 2);
-  }
 
   function extractForecastPayload(data) {
     if (!data) return null;
