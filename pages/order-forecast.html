@@ -31,10 +31,60 @@
       </div>
     </section>
 
-    <section class="panel" style="margin-top:32px;">
-      <h2 style="margin-top:0;">Coming Soon</h2>
-      <p class="muted">
-        Unified order forecasts, reconciliation workflows, and consensus alignment tools will live here.
+    <section class="panel" style="margin-top:32px;" aria-labelledby="forecastViewerTitle">
+      <div class="panel__intro">
+        <h2 id="forecastViewerTitle">Latest weekly forecast</h2>
+        <p class="muted">
+          Retrieve the most recent upload to verify week-over-week volumes and share a consistent view
+          across teams.
+        </p>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn" type="button" id="orderForecastRefresh">Load latest forecast</button>
+        <button class="btn btn--secondary" type="button" id="orderForecastDownload" hidden>
+          Download JSON
+        </button>
+      </div>
+
+      <p class="status-message" id="orderForecastMessage" role="status" aria-live="polite"></p>
+
+      <div id="orderForecastMeta" class="muted" style="margin-top:16px;"></div>
+
+      <div id="orderForecastTableWrap" class="table-wrap" hidden>
+        <table class="table" id="orderForecastTable" aria-describedby="orderForecastMeta">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <details id="orderForecastRaw" hidden style="margin-top:20px;">
+        <summary>View payload JSON</summary>
+        <pre id="orderForecastJson" style="background:#0f172a0d; padding:16px; border-radius:8px; overflow:auto;"></pre>
+      </details>
+    </section>
+
+    <section class="panel" style="margin-top:32px;" aria-labelledby="forecastUploadTitle">
+      <div class="panel__intro">
+        <h2 id="forecastUploadTitle">Upload new weekly forecast</h2>
+        <p class="muted">
+          Provide a CSV export that lists store codes in the first column followed by ISO week columns.
+          The file is converted to the JSON schema used by downstream services and pushed to Ultradar's
+          S3 bucket.
+        </p>
+      </div>
+
+      <form id="orderForecastForm" class="controls" novalidate>
+        <div class="control">
+          <label class="control__label" for="orderForecastFile">Weekly forecast CSV</label>
+          <input class="control__input" type="file" id="orderForecastFile" accept=".csv" required />
+        </div>
+        <button class="btn" type="submit">Upload forecast</button>
+      </form>
+
+      <p class="muted" style="margin-top:12px;">
+        Tip: include ISO week headers (e.g. <code>2025-W45</code>) in row&nbsp;1 and ensure values are
+        numeric. Thousands separators such as spaces or commas are automatically cleaned.
       </p>
     </section>
   </main>
@@ -132,6 +182,7 @@
     };
   </script>
   <script src="../js/main.js"></script>
+  <script src="../js/order-forecast.js" defer></script>
   <script>
     injectPartial('site-header', '../partials/header.html').then(() => {
       highlightActive('../pages/marketplace-performance.html');
