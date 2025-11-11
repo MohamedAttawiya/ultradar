@@ -1068,23 +1068,21 @@ li.innerHTML = `
       if (!summary) return null;
       const strategyId = summary.id || null;
       const name = summary.name || (strategyId ? `Strategy ${strategyId}` : 'Unnamed strategy');
-      const version = item?.version != null ? item.version : (item?.payload?.version ?? null);
+      const version = item?.version != null ? item.version : item?.payload?.version ?? null;
       const key = item?.key || item?.strategy_key || item?.object_key || item?.payload?.key || null;
       const lastModified = item?.lastModified || item?.last_modified || null;
 
-      const card = document.createElement('label');
+      const card = document.createElement('div');
       card.className = 'exclusion-strategy-card';
       card.setAttribute('role', 'option');
-
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.value = strategyId || name;
-      if (strategyId) checkbox.dataset.strategyId = strategyId;
-      if (name) checkbox.dataset.name = name;
-      if (key) checkbox.dataset.key = key;
-      if (version != null) checkbox.dataset.version = String(version);
-      if (lastModified) checkbox.dataset.lastModified = lastModified;
-      checkbox.setAttribute('aria-label', `Select ${name}`);
+      card.setAttribute('tabindex', '0');
+      card.setAttribute('aria-selected', 'false');
+      card.dataset.value = strategyId || name;
+      if (strategyId) card.dataset.strategyId = strategyId;
+      if (name) card.dataset.name = name;
+      if (key) card.dataset.key = key;
+      if (version != null) card.dataset.version = String(version);
+      if (lastModified) card.dataset.lastModified = lastModified;
 
       const body = document.createElement('div');
       body.className = 'exclusion-strategy-card__body';
@@ -1131,26 +1129,26 @@ li.innerHTML = `
         meta.appendChild(row);
       }
 
-      if (key) {
-        const row = document.createElement('div');
-        const dt = document.createElement('dt');
-        dt.textContent = 'Key';
-        const dd = document.createElement('dd');
-        dd.textContent = key;
-        row.appendChild(dt);
-        row.appendChild(dd);
-        meta.appendChild(row);
-      }
-
       body.appendChild(meta);
-
-      card.appendChild(checkbox);
       card.appendChild(body);
 
-      checkbox.addEventListener('change', () => {
-        card.classList.toggle('is-selected', checkbox.checked);
-        checkbox.setAttribute('aria-selected', checkbox.checked ? 'true' : 'false');
+      function toggleSelection() {
+        const shouldSelect = !card.classList.contains('is-selected');
+        card.classList.toggle('is-selected', shouldSelect);
+        card.setAttribute('aria-selected', shouldSelect ? 'true' : 'false');
         updateStrategySummary();
+      }
+
+      card.addEventListener('click', (event) => {
+        if (event.target.closest('button, a, input, textarea, select')) return;
+        toggleSelection();
+      });
+
+      card.addEventListener('keydown', (event) => {
+        if (event.key === ' ' || event.key === 'Enter') {
+          event.preventDefault();
+          toggleSelection();
+        }
       });
 
       return card;
@@ -1168,31 +1166,31 @@ li.innerHTML = `
       });
     }
 
-    function getSelectedStrategyCheckboxes() {
+    function getSelectedStrategyCards() {
       if (!strategyCardsHost) return [];
-      return Array.from(strategyCardsHost.querySelectorAll('input[type="checkbox"]:checked'));
+      return Array.from(strategyCardsHost.querySelectorAll('.exclusion-strategy-card.is-selected'));
     }
 
     function updateStrategySummary() {
       if (!strategySummaryEl) return;
-      const checked = getSelectedStrategyCheckboxes();
-      if (!checked.length) {
+      const selectedCards = getSelectedStrategyCards();
+      if (!selectedCards.length) {
         strategySummaryEl.textContent = 'Applies to all strategies.';
         return;
       }
-      const names = checked.map((input) => input.dataset.name || input.dataset.strategyId || input.value || 'Strategy');
+      const names = selectedCards.map((card) => card.dataset.name || card.dataset.strategyId || card.dataset.value || 'Strategy');
       const preview = names.slice(0, 3).join(', ');
       strategySummaryEl.textContent = names.length > 3 ? `${names.length} selected: ${preview}…` : `${names.length} selected: ${preview}`;
     }
 
     function getSelectedStrategyData() {
-      return getSelectedStrategyCheckboxes().map((input) => {
+      return getSelectedStrategyCards().map((card) => {
         const entry = {};
-        const strategyId = input.dataset.strategyId || '';
-        const name = input.dataset.name || '';
-        const key = input.dataset.key || '';
-        const versionRaw = input.dataset.version || '';
-        const lastModified = input.dataset.lastModified || '';
+        const strategyId = card.dataset.strategyId || '';
+        const name = card.dataset.name || '';
+        const key = card.dataset.key || '';
+        const versionRaw = card.dataset.version || '';
+        const lastModified = card.dataset.lastModified || '';
         if (strategyId) entry.strategy_id = strategyId;
         if (name) entry.name = name;
         if (key) entry.key = key;
