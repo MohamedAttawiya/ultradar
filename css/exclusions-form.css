@@ -109,6 +109,32 @@
   overflow: auto;
 }
 
+.exclusion-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.exclusion-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.exclusion-modal__dialog {
+  position: relative;
+  z-index: 1;
+  width: min(640px, 100%);
+}
+
+body.exclusion-modal-open {
+  overflow: hidden;
+}
+
 /* Popup window styles */
 .body-exclusion-popup {
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -128,11 +154,42 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-height: calc(100vh - 48px);
 }
 
 .exclusion-popup__header {
   padding: 20px 24px 16px;
   border-bottom: 1px solid #e2e8f0;
+}
+
+.exclusion-popup__header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.exclusion-popup__close {
+  border: none;
+  background: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+}
+
+.exclusion-popup__close:hover,
+.exclusion-popup__close:focus {
+  background: rgba(15, 23, 42, 0.15);
+  outline: none;
 }
 
 .exclusion-popup__header h2 {
@@ -141,10 +198,12 @@
 }
 
 .exclusion-popup__body {
-  padding: 24px;
+  padding: 20px 24px;
   display: flex;
   flex-direction: column;
   gap: 24px;
+  flex: 1 1 auto;
+  overflow-y: auto;
 }
 
 .exclusion-popup__section h3 {
@@ -163,6 +222,13 @@
   gap: 12px;
   flex-wrap: wrap;
   align-items: center;
+}
+
+.exclusion-date-summary {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #1e293b;
+  font-weight: 500;
 }
 
 .exclusion-popup__chips {
@@ -193,6 +259,132 @@
 .exclusion-popup__filters {
   display: grid;
   gap: 16px;
+}
+
+.exclusion-strategy-picker {
+  display: grid;
+  gap: 10px;
+}
+
+.exclusion-strategy-picker__label {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.exclusion-strategy-picker__status {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.exclusion-strategy-picker__grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  max-height: min(420px, 50vh);
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.exclusion-strategy-picker__grid::-webkit-scrollbar {
+  width: 8px;
+}
+
+.exclusion-strategy-picker__grid::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.4);
+  border-radius: 999px;
+}
+
+.exclusion-strategy-picker__grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (max-width: 720px) {
+  .exclusion-strategy-picker__grid {
+    max-height: min(320px, 45vh);
+  }
+}
+
+.exclusion-strategy-card {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  padding: 12px 16px;
+  border: 1px solid #cbd5f5;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.exclusion-strategy-card:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.exclusion-strategy-card.is-selected {
+  border-color: #2563eb;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.16);
+  background: rgba(37, 99, 235, 0.05);
+}
+
+.exclusion-strategy-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.exclusion-strategy-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.exclusion-strategy-card__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.exclusion-strategy-card__version {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1d4ed8;
+  background: rgba(37, 99, 235, 0.1);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.exclusion-strategy-card__meta {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: #475569;
+}
+
+.exclusion-strategy-card__meta div {
+  display: flex;
+  gap: 6px;
+}
+
+.exclusion-strategy-card__meta dt {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.exclusion-strategy-card__meta dd {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.exclusion-strategy-summary {
+  font-size: 13px;
+  color: #475569;
 }
 
 .exclusion-popup__filters textarea,

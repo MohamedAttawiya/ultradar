@@ -10,6 +10,7 @@
 
   const API_BASE = "https://zp97gyooxk.execute-api.eu-central-1.amazonaws.com";
   const STRATEGIES_URL = `${API_BASE}/strategies?prefix=strategies/`;
+  const STRATEGY_CATALOG_URL = `${API_BASE}/strategies`;
   const EXCLUSIONS_URL = `${API_BASE}/exclusions?prefix=exclusions/`;
 
   const EDIT_VIEW_SELECTOR   = '.strategy-view[data-view="edit"]';
@@ -30,6 +31,8 @@
   let suppressNextHashChange = false;
   let loadRequestId = 0;
   let exclusionRequestId = 0;
+  let strategyCatalogCache = null;
+  let strategyCatalogPromise = null;
 
   function currentFromHash(){
     const h = (location.hash || '').replace('#','');
@@ -339,22 +342,72 @@ li.innerHTML = `
   }
 }
 
+  function dedupeStrategySummaries(entries) {
+    if (!Array.isArray(entries) || !entries.length) return [];
+    const result = [];
+    const indexById = new Map();
+    const indexByName = new Map();
+
+    entries.forEach((item) => {
+      const summary = deriveStrategySummary(item);
+      if (!summary) return;
+      const id = summary.id != null ? String(summary.id) : null;
+      const rawName = summary.name != null ? String(summary.name) : '';
+      const name = rawName.trim();
+
+      if (id) {
+        const idKey = id;
+        if (indexById.has(idKey)) {
+          const existing = result[indexById.get(idKey)];
+          if (name && !existing.name) existing.name = name;
+          return;
+        }
+        if (name) {
+          const nameKey = name.toLowerCase();
+          if (indexByName.has(nameKey)) {
+            const idx = indexByName.get(nameKey);
+            const existing = result[idx];
+            if (!existing.id) existing.id = idKey;
+            indexById.set(idKey, idx);
+            return;
+          }
+        }
+        const entry = { id: idKey, name: name || null };
+        const idx = result.length;
+        result.push(entry);
+        indexById.set(idKey, idx);
+        if (name) indexByName.set(name.toLowerCase(), idx);
+        return;
+      }
+
+      if (name) {
+        const nameKey = name.toLowerCase();
+        if (indexByName.has(nameKey)) return;
+        const entry = { id: null, name };
+        const idx = result.length;
+        result.push(entry);
+        indexByName.set(nameKey, idx);
+      }
+    });
+
+    return result;
+  }
+
+  function appendKnownStrategies(entries) {
+    if (!Array.isArray(entries) || !entries.length) return;
+    knownStrategies = dedupeStrategySummaries(entries.concat(knownStrategies));
+  }
+
   function captureStrategySummaries(listData) {
     if (!Array.isArray(listData)) {
       knownStrategies = [];
       return;
     }
-    const seen = new Map();
-    listData.forEach((item) => {
-      const summary = deriveStrategySummary(item);
-      if (!summary) return;
-      const key = summary.id != null ? String(summary.id) : (summary.name || "");
-      if (!key) return;
-      if (!seen.has(key)) {
-        seen.set(key, summary);
-      }
-    });
-    knownStrategies = Array.from(seen.values());
+    if (!listData.length) {
+      knownStrategies = dedupeStrategySummaries(knownStrategies);
+      return;
+    }
+    appendKnownStrategies(listData);
   }
 
   function deriveStrategySummary(item) {
@@ -412,7 +465,7 @@ li.innerHTML = `
     if (createBtn) {
       createBtn.addEventListener('click', (event) => {
         event.preventDefault();
-        openExclusionWindow();
+        openExclusionDialog();
       });
     }
     const reloadBtn = host.querySelector('[data-action="reload-exclusions"]');
@@ -705,225 +758,509 @@ li.innerHTML = `
     container.appendChild(frag);
   }
 
-  function safePopupHref(relativePath) {
-    try {
-      const absolute = new URL(relativePath, location.href).href;
-      return absolute.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-    } catch (err) {
-      return relativePath;
+  async function fetchStrategyCatalog() {
+    if (Array.isArray(strategyCatalogCache)) {
+      return strategyCatalogCache;
     }
+    if (strategyCatalogPromise) {
+      return strategyCatalogPromise;
+    }
+
+    strategyCatalogPromise = (async () => {
+      try {
+        const res = await fetch(STRATEGY_CATALOG_URL, { headers: { 'Accept': 'application/json' } });
+        const text = await res.text();
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        let payload = text ? parseMaybeJson(text) : null;
+        if (payload && typeof payload.body === 'string') {
+          const nested = parseMaybeJson(payload.body);
+          if (nested != null) payload = nested;
+        }
+        const normalized = normalizeStrategies(payload);
+        const list = Array.isArray(normalized) ? normalized.filter(Boolean) : [];
+        if (list.length) appendKnownStrategies(list);
+        strategyCatalogCache = list;
+        return list;
+      } catch (err) {
+        strategyCatalogCache = null;
+        throw err;
+      } finally {
+        strategyCatalogPromise = null;
+      }
+    })();
+
+    return strategyCatalogPromise;
   }
 
-  function openExclusionWindow() {
-    const width = 720;
-    const height = 760;
-    const left = typeof window.screenX === 'number' && typeof window.outerWidth === 'number'
-      ? window.screenX + Math.max(0, (window.outerWidth - width) / 2)
-      : 120;
-    const top = typeof window.screenY === 'number' && typeof window.outerHeight === 'number'
-      ? window.screenY + Math.max(0, (window.outerHeight - height) / 2)
-      : 80;
-    const specs = `width=${Math.round(width)},height=${Math.round(height)},left=${Math.round(left)},top=${Math.round(top)},resizable=yes,scrollbars=yes`;
-    const popup = window.open('', 'ultradar-exclusion-builder', specs);
-    if (!popup) {
-      alert('Please allow pop-ups to create exclusions.');
+  function openExclusionDialog() {
+    if (document.querySelector('.exclusion-modal')) {
       return;
     }
-    const doc = popup.document;
-    const cssHref = safePopupHref('../css/exclusions-form.css');
-    const strategiesPayload = JSON.stringify(knownStrategies || []).replace(/</g, '\\u003c');
-    const html = String.raw`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>Create Exclusion</title>
-  <link rel="stylesheet" href="${cssHref}">
-</head>
-<body class="body-exclusion-popup">
-  <div class="exclusion-popup__frame" role="dialog" aria-modal="true">
-    <header class="exclusion-popup__header">
-      <h2>Create Exclusion</h2>
-      <p class="exclusion-popup__hint">Select the days to exclude, choose filters, and generate the JSON payload.</p>
-    </header>
-    <main class="exclusion-popup__body">
-      <section class="exclusion-popup__section" aria-labelledby="exclusion-calendar-title">
-        <h3 id="exclusion-calendar-title">Calendar</h3>
-        <div class="exclusion-popup__dates">
-          <div>
-            <label for="exclusion-date-input">Pick a date to add</label>
-            <div class="exclusion-popup__date-row">
-              <input id="exclusion-date-input" type="date" />
-              <button class="btn" type="button" id="exclusion-add-date">Add date</button>
+
+    const overlay = document.createElement('div');
+    overlay.className = 'exclusion-modal';
+    overlay.innerHTML = `
+      <div class="exclusion-modal__backdrop" data-action="close-exclusion"></div>
+      <div class="exclusion-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="exclusion-modal-title">
+        <div class="exclusion-popup__frame">
+          <header class="exclusion-popup__header">
+            <div class="exclusion-popup__header-row">
+              <h2 id="exclusion-modal-title">Create Exclusion</h2>
+              <button class="exclusion-popup__close" type="button" data-action="close-exclusion" aria-label="Close exclusion builder">×</button>
             </div>
-            <p class="exclusion-popup__hint">Add multiple non-consecutive days if needed. Each click adds the selected day to the exclusion list.</p>
-          </div>
-          <div id="exclusion-date-chips" class="exclusion-popup__chips"></div>
+            <p class="exclusion-popup__hint">Select consecutive days, choose filters, and generate the JSON payload.</p>
+          </header>
+          <main class="exclusion-popup__body">
+            <section class="exclusion-popup__section" aria-labelledby="exclusion-calendar-title">
+              <h3 id="exclusion-calendar-title">Calendar</h3>
+              <div class="exclusion-popup__dates">
+                <div>
+                  <label for="exclusion-date-input">Pick a day to add</label>
+                  <div class="exclusion-popup__date-row">
+                    <input id="exclusion-date-input" type="date" />
+                    <button class="btn" type="button" id="exclusion-add-date">Add day</button>
+                  </div>
+                  <p class="exclusion-popup__hint">Add each day in order. Only consecutive ranges are supported.</p>
+                  <div class="exclusion-date-summary" id="exclusion-date-summary">No dates selected yet.</div>
+                </div>
+                <div id="exclusion-date-chips" class="exclusion-popup__chips"></div>
+              </div>
+            </section>
+            <section class="exclusion-popup__section" aria-labelledby="exclusion-filters-title">
+              <h3 id="exclusion-filters-title">Filters</h3>
+              <div class="exclusion-popup__filters">
+                <label for="exclusion-store-field">
+                  <span>Attach to Store</span>
+                  <span class="exclusion-popup__hint">Write store names to apply exclusion on separated by "," - leave empty for global exclusion</span>
+                  <textarea id="exclusion-store-field" rows="2" placeholder="QDA3, QDA8"></textarea>
+                </label>
+                <div class="exclusion-strategy-picker">
+                  <span class="exclusion-strategy-picker__label">Attach to strategy</span>
+                  <span class="exclusion-popup__hint">Select one or more strategies or leave all unchecked to target all strategies.</span>
+                  <div class="exclusion-strategy-picker__status" id="exclusion-strategy-status">Loading strategies…</div>
+                  <div class="exclusion-strategy-picker__grid" id="exclusion-strategy-cards" role="listbox" aria-multiselectable="true"></div>
+                  <div class="exclusion-strategy-summary" id="exclusion-strategy-summary">Applies to all strategies.</div>
+                </div>
+              </div>
+            </section>
+          </main>
+          <footer class="exclusion-popup__footer">
+            <button class="btn" type="button" id="exclusion-generate">Generate .json</button>
+            <pre id="exclusion-json-output">{
+}
+</pre>
+            <div class="exclusion-popup__hint" id="exclusion-popup-status">Select dates and filters, then generate the JSON payload.</div>
+          </footer>
         </div>
-      </section>
-      <section class="exclusion-popup__section" aria-labelledby="exclusion-filters-title">
-        <h3 id="exclusion-filters-title">Filters</h3>
-        <div class="exclusion-popup__filters">
-          <label for="exclusion-store-field">
-            <span>Attach to Store</span>
-            <span class="exclusion-popup__hint">Write store names to apply exclusion on separated by "," - leave empty for global exclusion</span>
-            <textarea id="exclusion-store-field" rows="2" placeholder="QDA3, QDA8"></textarea>
-          </label>
-          <label for="exclusion-strategy-select">
-            <span>Attach to strategy</span>
-            <select id="exclusion-strategy-select" multiple size="6"></select>
-            <span class="exclusion-popup__hint">Select multiple strategies or leave empty to target all strategies.</span>
-          </label>
-        </div>
-      </section>
-    </main>
-    <footer class="exclusion-popup__footer">
-      <button class="btn" type="button" id="exclusion-generate">Generate .json</button>
-      <pre id="exclusion-json-output">{
-}</pre>
-      <div class="exclusion-popup__hint" id="exclusion-popup-status">Select dates and filters, then generate the JSON payload.</div>
-    </footer>
-  </div>
-  <script>
-    (function(){
-      const strategies = ${strategiesPayload};
-      const doc = document;
-      const dateInput = doc.getElementById('exclusion-date-input');
-      const addDateBtn = doc.getElementById('exclusion-add-date');
-      const chipsHost = doc.getElementById('exclusion-date-chips');
-      const storeField = doc.getElementById('exclusion-store-field');
-      const strategySelect = doc.getElementById('exclusion-strategy-select');
-      const generateBtn = doc.getElementById('exclusion-generate');
-      const jsonOutput = doc.getElementById('exclusion-json-output');
-      const statusEl = doc.getElementById('exclusion-popup-status');
-      const selectedDates = new Set();
+      </div>
+    `;
 
-      function notifyStatus(message) {
-        if (statusEl) statusEl.textContent = message;
+    document.body.appendChild(overlay);
+    document.body.classList.add('exclusion-modal-open');
+
+    const dialog = overlay.querySelector('.exclusion-modal__dialog');
+    if (dialog) {
+      dialog.setAttribute('tabindex', '-1');
+      dialog.focus({ preventScroll: true });
+    }
+
+    const dateInput = overlay.querySelector('#exclusion-date-input');
+    const addDateBtn = overlay.querySelector('#exclusion-add-date');
+    const chipsHost = overlay.querySelector('#exclusion-date-chips');
+    const dateSummaryEl = overlay.querySelector('#exclusion-date-summary');
+    const storeField = overlay.querySelector('#exclusion-store-field');
+    const generateBtn = overlay.querySelector('#exclusion-generate');
+    const jsonOutput = overlay.querySelector('#exclusion-json-output');
+    const statusEl = overlay.querySelector('#exclusion-popup-status');
+    const strategyCardsHost = overlay.querySelector('#exclusion-strategy-cards');
+    const strategyStatusEl = overlay.querySelector('#exclusion-strategy-status');
+    const strategySummaryEl = overlay.querySelector('#exclusion-strategy-summary');
+
+    const selectedDates = new Set();
+
+    function closeDialog() {
+      document.removeEventListener('keydown', onKeyDown, true);
+      document.body.classList.remove('exclusion-modal-open');
+      overlay.remove();
+    }
+
+    function onKeyDown(event) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeDialog();
+      }
+    }
+
+    overlay.addEventListener('click', (event) => {
+      if (event.target === overlay || event.target?.dataset?.action === 'close-exclusion') {
+        event.preventDefault();
+        closeDialog();
+      }
+    });
+
+    const closeButtons = overlay.querySelectorAll('[data-action="close-exclusion"]');
+    closeButtons.forEach((btn) => {
+      btn.addEventListener('click', (event) => {
+        event.preventDefault();
+        closeDialog();
+      });
+    });
+
+    overlay.addEventListener('keydown', (event) => {
+      if (event.key !== 'Tab') return;
+      const focusable = Array.from(overlay.querySelectorAll('button, [href], input, textarea, [tabindex]:not([tabindex="-1"])'))
+        .filter((el) => !el.hasAttribute('disabled'));
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    });
+
+    document.addEventListener('keydown', onKeyDown, true);
+
+    setTimeout(() => {
+      if (dateInput) {
+        dateInput.focus({ preventScroll: true });
+      }
+    }, 80);
+
+    function notifyStatus(message) {
+      if (statusEl) statusEl.textContent = message;
+    }
+
+    function setStrategyStatus(message) {
+      if (strategyStatusEl) strategyStatusEl.textContent = message;
+    }
+
+    function getSortedDates() {
+      return Array.from(selectedDates).sort();
+    }
+
+    const DAY_MS = 24 * 60 * 60 * 1000;
+
+    function parseDay(value) {
+      if (!value) return NaN;
+      const timestamp = Date.parse(`${value}T00:00:00Z`);
+      return Number.isNaN(timestamp) ? NaN : timestamp;
+    }
+
+    function isConsecutive(values) {
+      if (!Array.isArray(values) || values.length <= 1) return true;
+      for (let i = 1; i < values.length; i += 1) {
+        const prev = parseDay(values[i - 1]);
+        const current = parseDay(values[i]);
+        if (!Number.isFinite(prev) || !Number.isFinite(current) || Math.abs(current - prev) !== DAY_MS) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    function formatDisplayDate(value) {
+      const stamp = parseDay(value);
+      if (!Number.isFinite(stamp)) return value || '—';
+      try {
+        const date = new Date(stamp);
+        return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+      } catch (err) {
+        return value || '—';
+      }
+    }
+
+    function updateDateSummary() {
+      if (!dateSummaryEl) return;
+      const values = getSortedDates();
+      if (!values.length) {
+        dateSummaryEl.textContent = 'No dates selected yet.';
+        return;
+      }
+      if (values.length === 1) {
+        dateSummaryEl.textContent = `Selected day: ${formatDisplayDate(values[0])}`;
+        return;
+      }
+      const first = formatDisplayDate(values[0]);
+      const last = formatDisplayDate(values[values.length - 1]);
+      dateSummaryEl.textContent = `Selected range: ${first} → ${last} (${values.length} days)`;
+    }
+
+    function renderDateChips() {
+      if (!chipsHost) return;
+      chipsHost.innerHTML = '';
+      const values = getSortedDates();
+      if (!values.length) {
+        const hint = document.createElement('span');
+        hint.className = 'exclusion-popup__hint';
+        hint.textContent = 'No dates selected yet.';
+        chipsHost.appendChild(hint);
+        updateDateSummary();
+        return;
       }
 
-      function renderStrategiesOptions() {
-        if (!strategySelect) return;
-        strategySelect.innerHTML = '';
-        if (!Array.isArray(strategies) || !strategies.length) {
-          const option = doc.createElement('option');
-          option.disabled = true;
-          option.textContent = 'No strategies available';
-          strategySelect.appendChild(option);
-          return;
-        }
-        strategies.forEach((entry) => {
-          const option = doc.createElement('option');
-          option.value = entry.id || entry.name || '';
-          option.textContent = entry.name || entry.id || 'Unnamed strategy';
-          if (entry.name) option.dataset.name = entry.name;
-          if (entry.id != null) option.dataset.id = entry.id;
-          strategySelect.appendChild(option);
+      values.forEach((value) => {
+        const chip = document.createElement('span');
+        chip.className = 'exclusion-popup__chip';
+        chip.dataset.value = value;
+        chip.title = value;
+        chip.textContent = formatDisplayDate(value);
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.setAttribute('aria-label', `Remove ${value}`);
+        removeBtn.textContent = '×';
+        removeBtn.addEventListener('click', () => {
+          selectedDates.delete(value);
+          renderDateChips();
         });
-      }
+        chip.appendChild(removeBtn);
+        chipsHost.appendChild(chip);
+      });
 
-      function renderDateChips() {
-        if (!chipsHost) return;
-        chipsHost.innerHTML = '';
-        const values = Array.from(selectedDates).sort();
-        if (!values.length) {
-          const hint = doc.createElement('span');
-          hint.className = 'exclusion-popup__hint';
-          hint.textContent = 'No dates selected yet.';
-          chipsHost.appendChild(hint);
-          return;
-        }
-        values.forEach((value) => {
-          const chip = doc.createElement('span');
-          chip.className = 'exclusion-popup__chip';
-          chip.textContent = value;
-          const removeBtn = doc.createElement('button');
-          removeBtn.type = 'button';
-          removeBtn.setAttribute('aria-label', 'Remove ' + value);
-          removeBtn.textContent = '×';
-          removeBtn.addEventListener('click', () => {
-            selectedDates.delete(value);
-            renderDateChips();
-          });
-          chip.appendChild(removeBtn);
-          chipsHost.appendChild(chip);
-        });
-      }
+      updateDateSummary();
+    }
 
-      function addDateFromInput() {
-        if (!dateInput) return;
-        const value = dateInput.value;
-        if (!value) {
-          notifyStatus('Select a date before adding it to the exclusion.');
-          return;
-        }
-        selectedDates.add(value);
-        dateInput.value = '';
-        renderDateChips();
+    function addDateFromInput() {
+      if (!dateInput) return;
+      const value = dateInput.value;
+      if (!value) {
+        notifyStatus('Select a date before adding it to the exclusion.');
+        return;
       }
+      if (selectedDates.has(value)) {
+        notifyStatus('This day is already selected. Choose a different day.');
+        return;
+      }
+      selectedDates.add(value);
+      const sorted = getSortedDates();
+      if (!isConsecutive(sorted)) {
+        selectedDates.delete(value);
+        notifyStatus('Only consecutive days can be added. Pick the next day in sequence.');
+        return;
+      }
+      dateInput.value = '';
+      renderDateChips();
+      notifyStatus(sorted.length === 1 ? 'One day selected.' : `${sorted.length} days selected.`);
+    }
 
-      if (addDateBtn) {
-        addDateBtn.addEventListener('click', (event) => {
+    if (addDateBtn) {
+      addDateBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        addDateFromInput();
+      });
+    }
+
+    if (dateInput) {
+      dateInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
           event.preventDefault();
           addDateFromInput();
-        });
-      }
-      if (dateInput) {
-        dateInput.addEventListener('keydown', (event) => {
-          if (event.key === 'Enter') {
-            event.preventDefault();
-            addDateFromInput();
-          }
-        });
+        }
+      });
+    }
+
+    function createStrategyCard(item) {
+      if (!strategyCardsHost) return null;
+      const summary = deriveStrategySummary(item);
+      if (!summary) return null;
+      const strategyId = summary.id || null;
+      const name = summary.name || (strategyId ? `Strategy ${strategyId}` : 'Unnamed strategy');
+      const version = item?.version != null ? item.version : item?.payload?.version ?? null;
+      const key = item?.key || item?.strategy_key || item?.object_key || item?.payload?.key || null;
+      const lastModified = item?.lastModified || item?.last_modified || null;
+
+      const card = document.createElement('div');
+      card.className = 'exclusion-strategy-card';
+      card.setAttribute('role', 'option');
+      card.setAttribute('tabindex', '0');
+      card.setAttribute('aria-selected', 'false');
+      card.dataset.value = strategyId || name;
+      if (strategyId) card.dataset.strategyId = strategyId;
+      if (name) card.dataset.name = name;
+      if (key) card.dataset.key = key;
+      if (version != null) card.dataset.version = String(version);
+      if (lastModified) card.dataset.lastModified = lastModified;
+
+      const body = document.createElement('div');
+      body.className = 'exclusion-strategy-card__body';
+
+      const header = document.createElement('div');
+      header.className = 'exclusion-strategy-card__header';
+
+      const title = document.createElement('h4');
+      title.className = 'exclusion-strategy-card__title';
+      title.textContent = name;
+      header.appendChild(title);
+
+      if (version != null) {
+        const versionBadge = document.createElement('span');
+        versionBadge.className = 'exclusion-strategy-card__version';
+        versionBadge.textContent = `v${version}`;
+        header.appendChild(versionBadge);
       }
 
-      if (generateBtn) {
-        generateBtn.addEventListener('click', () => {
-          if (!selectedDates.size) {
-            notifyStatus('Please add at least one date before generating the JSON payload.');
-            return;
+      body.appendChild(header);
+
+      const meta = document.createElement('dl');
+      meta.className = 'exclusion-strategy-card__meta';
+
+      if (strategyId) {
+        const row = document.createElement('div');
+        const dt = document.createElement('dt');
+        dt.textContent = 'ID';
+        const dd = document.createElement('dd');
+        dd.textContent = strategyId;
+        row.appendChild(dt);
+        row.appendChild(dd);
+        meta.appendChild(row);
+      }
+
+      if (lastModified) {
+        const row = document.createElement('div');
+        const dt = document.createElement('dt');
+        dt.textContent = 'Updated';
+        const dd = document.createElement('dd');
+        dd.textContent = formatDate(lastModified);
+        row.appendChild(dt);
+        row.appendChild(dd);
+        meta.appendChild(row);
+      }
+
+      body.appendChild(meta);
+      card.appendChild(body);
+
+      function toggleSelection() {
+        const shouldSelect = !card.classList.contains('is-selected');
+        card.classList.toggle('is-selected', shouldSelect);
+        card.setAttribute('aria-selected', shouldSelect ? 'true' : 'false');
+        updateStrategySummary();
+      }
+
+      card.addEventListener('click', (event) => {
+        if (event.target.closest('button, a, input, textarea, select')) return;
+        toggleSelection();
+      });
+
+      card.addEventListener('keydown', (event) => {
+        if (event.key === ' ' || event.key === 'Enter') {
+          event.preventDefault();
+          toggleSelection();
+        }
+      });
+
+      return card;
+    }
+
+    function renderStrategyCards(list) {
+      if (!strategyCardsHost) return;
+      strategyCardsHost.innerHTML = '';
+      if (!Array.isArray(list) || !list.length) {
+        return;
+      }
+      list.forEach((item) => {
+        const card = createStrategyCard(item);
+        if (card) strategyCardsHost.appendChild(card);
+      });
+    }
+
+    function getSelectedStrategyCards() {
+      if (!strategyCardsHost) return [];
+      return Array.from(strategyCardsHost.querySelectorAll('.exclusion-strategy-card.is-selected'));
+    }
+
+    function updateStrategySummary() {
+      if (!strategySummaryEl) return;
+      const selectedCards = getSelectedStrategyCards();
+      if (!selectedCards.length) {
+        strategySummaryEl.textContent = 'Applies to all strategies.';
+        return;
+      }
+      const names = selectedCards.map((card) => card.dataset.name || card.dataset.strategyId || card.dataset.value || 'Strategy');
+      const preview = names.slice(0, 3).join(', ');
+      strategySummaryEl.textContent = names.length > 3 ? `${names.length} selected: ${preview}…` : `${names.length} selected: ${preview}`;
+    }
+
+    function getSelectedStrategyData() {
+      return getSelectedStrategyCards().map((card) => {
+        const entry = {};
+        const strategyId = card.dataset.strategyId || '';
+        const name = card.dataset.name || '';
+        const key = card.dataset.key || '';
+        const versionRaw = card.dataset.version || '';
+        const lastModified = card.dataset.lastModified || '';
+        if (strategyId) entry.strategy_id = strategyId;
+        if (name) entry.name = name;
+        if (key) entry.key = key;
+        if (versionRaw) {
+          const numeric = Number(versionRaw);
+          if (!Number.isNaN(numeric)) entry.version = numeric;
+        }
+        if (lastModified) entry.lastModified = lastModified;
+        return entry;
+      }).filter((entry) => Object.keys(entry).length > 0);
+    }
+
+    function ensureStrategyCards() {
+      const cached = Array.isArray(strategyCatalogCache) ? strategyCatalogCache : null;
+      if (cached) {
+        renderStrategyCards(cached);
+        setStrategyStatus(cached.length ? 'Select one or more strategies or leave all unchecked to target all strategies.' : 'No strategies available.');
+        updateStrategySummary();
+      } else {
+        setStrategyStatus('Loading strategies…');
+      }
+
+      fetchStrategyCatalog()
+        .then((list) => {
+          const safeList = Array.isArray(list) ? list : [];
+          renderStrategyCards(safeList);
+          setStrategyStatus(safeList.length ? 'Select one or more strategies or leave all unchecked to target all strategies.' : 'No strategies available.');
+          updateStrategySummary();
+        })
+        .catch((err) => {
+          console.error('Failed to load strategy catalog for exclusions.', err);
+          if (!cached || !cached.length) {
+            setStrategyStatus('Failed to load strategies.');
           }
-          const storeValue = (storeField && storeField.value ? storeField.value : '').trim();
-          const storeNames = storeValue ? storeValue.split(',').map((part) => part.trim()).filter(Boolean) : [];
-          const strategyOptions = strategySelect ? Array.from(strategySelect.selectedOptions) : [];
-          const selectedStrategies = strategyOptions.map((opt) => ({
-            id: opt.dataset.id || opt.value || null,
-            name: opt.dataset.name || opt.textContent || opt.value || null
-          })).filter((entry) => entry.id || entry.name);
-          const payload = {
-            name: storeNames.length ? 'Store exclusion' : 'Global exclusion',
-            description: 'Manual exclusion generated from the Strategies page.',
-            exclusion_id: 'temp-' + Date.now(),
-            created_at: new Date().toISOString(),
-            dates: Array.from(selectedDates),
-            filters: {
-              stores: storeNames,
-              strategies: selectedStrategies
-            }
-          };
+        });
+    }
+
+    if (generateBtn) {
+      generateBtn.addEventListener('click', () => {
+        const sortedDates = getSortedDates();
+        if (!sortedDates.length) {
+          notifyStatus('Please add at least one date before generating the JSON payload.');
+          return;
+        }
+        const storeValue = (storeField && storeField.value ? storeField.value : '').trim();
+        const storeNames = storeValue ? storeValue.split(',').map((part) => part.trim()).filter(Boolean) : [];
+        const selectedStrategies = getSelectedStrategyData();
+        const payload = {
+          name: storeNames.length ? 'Store exclusion' : 'Global exclusion',
+          description: 'Manual exclusion generated from the Strategies page.',
+          exclusion_id: 'temp-' + Date.now(),
+          created_at: new Date().toISOString(),
+          dates: sortedDates,
+          filters: {
+            stores: storeNames,
+            strategies: selectedStrategies
+          }
+        };
+        if (jsonOutput) {
           jsonOutput.textContent = JSON.stringify(payload, null, 2);
-          let pushed = false;
-          try {
-            if (window.opener && !window.opener.closed && window.opener.UltradarExclusions && typeof window.opener.UltradarExclusions.createExclusion === 'function') {
-              window.opener.UltradarExclusions.createExclusion(payload);
-              pushed = true;
-            }
-          } catch (err) {
-            console.error('Failed to notify Ultradar about the new exclusion.', err);
-          }
-          notifyStatus(pushed ? 'JSON generated and sent to Ultradar.' : 'JSON generated. Copy it or keep this window open.');
-        });
-      }
+        }
+        applyCreatedExclusion(payload);
+        notifyStatus('JSON generated and added to the exclusions list.');
+      });
+    }
 
-      renderStrategiesOptions();
-      renderDateChips();
-    })();
-  <\/script>
-</body>
-</html>`;
-    doc.open();
-    doc.write(html);
-    doc.close();
-    popup.focus();
+    renderDateChips();
+    ensureStrategyCards();
+    updateStrategySummary();
+    notifyStatus('Select dates and filters, then generate the JSON payload.');
   }
 
   function applyCreatedExclusion(definition) {
