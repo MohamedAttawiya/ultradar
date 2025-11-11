@@ -98,17 +98,6 @@
   margin: 0;
 }
 
-.exclusion-card__json {
-  margin: 0;
-  padding: 12px;
-  background: #0f172a;
-  color: #e2e8f0;
-  border-radius: 10px;
-  font-size: 12px;
-  max-height: 220px;
-  overflow: auto;
-}
-
 .exclusion-modal {
   position: fixed;
   inset: 0;

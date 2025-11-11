@@ -12,6 +12,7 @@
   const STRATEGIES_URL = `${API_BASE}/strategies?prefix=strategies/`;
   const STRATEGY_CATALOG_URL = `${API_BASE}/strategies`;
   const EXCLUSIONS_URL = `${API_BASE}/exclusions?prefix=exclusions/`;
+  const CREATE_EXCLUSION_URL = `${API_BASE}/exclusions`;
 
   const EDIT_VIEW_SELECTOR   = '.strategy-view[data-view="edit"]';
   const CREATE_VIEW_SELECTOR = '.strategy-view[data-view="create"]';
@@ -738,7 +739,6 @@ li.innerHTML = `
         ? entry.strategies.map((s) => s.name || s.id).filter(Boolean).join(', ')
         : 'All strategies';
       const dateSummary = entry.dates && entry.dates.length ? entry.dates.join(', ') : '—';
-      const rawPayload = entry.raw != null ? entry.raw : entry;
       card.innerHTML = `
         <div class="exclusion-card__header">
           <h5 class="exclusion-card__title">${escapeHtml(entry.name || `Exclusion ${index + 1}`)}</h5>
@@ -750,7 +750,6 @@ li.innerHTML = `
           <div><dt>Stores</dt><dd>${escapeHtml(storeSummary)}</dd></div>
           <div><dt>Strategies</dt><dd>${escapeHtml(strategySummary)}</dd></div>
         </dl>
-        <pre class="exclusion-card__json">${escapeHtml(JSON.stringify(rawPayload, null, 2))}</pre>
       `;
       frag.appendChild(card);
     });
@@ -808,7 +807,7 @@ li.innerHTML = `
               <h2 id="exclusion-modal-title">Create Exclusion</h2>
               <button class="exclusion-popup__close" type="button" data-action="close-exclusion" aria-label="Close exclusion builder">×</button>
             </div>
-            <p class="exclusion-popup__hint">Select consecutive days, choose filters, and generate the JSON payload.</p>
+            <p class="exclusion-popup__hint">Select consecutive days, choose filters, and create the exclusion.</p>
           </header>
           <main class="exclusion-popup__body">
             <section class="exclusion-popup__section" aria-labelledby="exclusion-details-title">
@@ -858,11 +857,8 @@ li.innerHTML = `
             </section>
           </main>
           <footer class="exclusion-popup__footer">
-            <button class="btn" type="button" id="exclusion-generate">Generate .json</button>
-            <pre id="exclusion-json-output">{
-}
-</pre>
-            <div class="exclusion-popup__hint" id="exclusion-popup-status">Select dates and filters, then generate the JSON payload.</div>
+            <button class="btn" type="button" id="exclusion-create">Create exclusion</button>
+            <div class="exclusion-popup__hint" id="exclusion-popup-status">Select dates and filters, then create the exclusion.</div>
           </footer>
         </div>
       </div>
@@ -884,8 +880,7 @@ li.innerHTML = `
     const nameField = overlay.querySelector('#exclusion-name-field');
     const descriptionField = overlay.querySelector('#exclusion-description-field');
     const storeField = overlay.querySelector('#exclusion-store-field');
-    const generateBtn = overlay.querySelector('#exclusion-generate');
-    const jsonOutput = overlay.querySelector('#exclusion-json-output');
+    const createBtn = overlay.querySelector('#exclusion-create');
     const statusEl = overlay.querySelector('#exclusion-popup-status');
     const strategyCardsHost = overlay.querySelector('#exclusion-strategy-cards');
     const strategyStatusEl = overlay.querySelector('#exclusion-strategy-status');
@@ -947,6 +942,13 @@ li.innerHTML = `
 
     function notifyStatus(message) {
       if (statusEl) statusEl.textContent = message;
+    }
+
+    function setSubmitting(state) {
+      if (createBtn) {
+        createBtn.disabled = state;
+        createBtn.textContent = state ? 'Creating…' : 'Create exclusion';
+      }
     }
 
     function setStrategyStatus(message) {
@@ -1263,13 +1265,16 @@ li.innerHTML = `
         });
     }
 
-    if (generateBtn) {
-      generateBtn.addEventListener('click', () => {
+    let isSubmitting = false;
+
+    if (createBtn) {
+      createBtn.addEventListener('click', async () => {
         const sortedDates = getSortedDates();
         if (!sortedDates.length) {
-          notifyStatus('Please add at least one date before generating the JSON payload.');
+          notifyStatus('Please add at least one date before creating the exclusion.');
           return;
         }
+        if (isSubmitting) return;
         const nameValue = nameField && nameField.value ? nameField.value.trim() : '';
         const descriptionValue = descriptionField && descriptionField.value ? descriptionField.value.trim() : '';
         const storeValue = (storeField && storeField.value ? storeField.value : '').trim();
@@ -1286,18 +1291,56 @@ li.innerHTML = `
             strategies: selectedStrategies
           }
         };
-        if (jsonOutput) {
-          jsonOutput.textContent = JSON.stringify(payload, null, 2);
+        try {
+          isSubmitting = true;
+          setSubmitting(true);
+          notifyStatus('Creating exclusion…');
+          const res = await fetch(CREATE_EXCLUSION_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify(payload)
+          });
+          const text = await res.text();
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+          }
+          let responseBody = text ? parseMaybeJson(text) : null;
+          if (responseBody && typeof responseBody.body === 'string') {
+            const nested = parseMaybeJson(responseBody.body);
+            if (nested != null) responseBody = nested;
+          }
+          let created = null;
+          if (responseBody && typeof responseBody === 'object') {
+            if (Array.isArray(responseBody)) {
+              created = responseBody[0] || null;
+            } else if (responseBody.exclusion) {
+              created = responseBody.exclusion;
+            } else {
+              created = responseBody;
+            }
+          }
+          applyCreatedExclusion(created || payload);
+          notifyStatus('Exclusion created successfully.');
+          await loadExclusions({ force: true });
+          closeDialog();
+        } catch (err) {
+          console.error('Failed to create exclusion.', err);
+          const message = err && err.message ? err.message : 'Please try again.';
+          notifyStatus(`Failed to create exclusion. ${message}`);
+        } finally {
+          isSubmitting = false;
+          setSubmitting(false);
         }
-        applyCreatedExclusion(payload);
-        notifyStatus('JSON generated and added to the exclusions list.');
       });
     }
 
     renderDateChips();
     ensureStrategyCards();
     updateStrategySummary();
-    notifyStatus('Select dates and filters, then generate the JSON payload.');
+    notifyStatus('Select dates and filters, then create the exclusion.');
   }
 
   function applyCreatedExclusion(definition) {
