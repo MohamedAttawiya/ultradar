@@ -811,6 +811,19 @@ li.innerHTML = `
             <p class="exclusion-popup__hint">Select consecutive days, choose filters, and generate the JSON payload.</p>
           </header>
           <main class="exclusion-popup__body">
+            <section class="exclusion-popup__section" aria-labelledby="exclusion-details-title">
+              <h3 id="exclusion-details-title">Details</h3>
+              <div class="exclusion-popup__filters">
+                <label for="exclusion-name-field">
+                  <span>Name</span>
+                  <input id="exclusion-name-field" type="text" placeholder="My exclusion" />
+                </label>
+                <label for="exclusion-description-field">
+                  <span>Description</span>
+                  <textarea id="exclusion-description-field" rows="3" placeholder="Why this exclusion exists"></textarea>
+                </label>
+              </div>
+            </section>
             <section class="exclusion-popup__section" aria-labelledby="exclusion-calendar-title">
               <h3 id="exclusion-calendar-title">Calendar</h3>
               <div class="exclusion-popup__dates">
@@ -868,6 +881,8 @@ li.innerHTML = `
     const addDateBtn = overlay.querySelector('#exclusion-add-date');
     const chipsHost = overlay.querySelector('#exclusion-date-chips');
     const dateSummaryEl = overlay.querySelector('#exclusion-date-summary');
+    const nameField = overlay.querySelector('#exclusion-name-field');
+    const descriptionField = overlay.querySelector('#exclusion-description-field');
     const storeField = overlay.querySelector('#exclusion-store-field');
     const generateBtn = overlay.querySelector('#exclusion-generate');
     const jsonOutput = overlay.querySelector('#exclusion-json-output');
@@ -943,6 +958,26 @@ li.innerHTML = `
     }
 
     const DAY_MS = 24 * 60 * 60 * 1000;
+
+    function createUuid() {
+      if (typeof crypto !== 'undefined') {
+        if (typeof crypto.randomUUID === 'function') {
+          try {
+            return crypto.randomUUID();
+          } catch (err) {
+            // Ignore and use fallback below.
+          }
+        }
+        if (typeof crypto.getRandomValues === 'function') {
+          const bytes = crypto.getRandomValues(new Uint8Array(16));
+          bytes[6] = (bytes[6] & 0x0f) | 0x40;
+          bytes[8] = (bytes[8] & 0x3f) | 0x80;
+          const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0'));
+          return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10, 16).join('')}`;
+        }
+      }
+      return `exclusion-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+    }
 
     function parseDay(value) {
       if (!value) return NaN;
@@ -1235,13 +1270,15 @@ li.innerHTML = `
           notifyStatus('Please add at least one date before generating the JSON payload.');
           return;
         }
+        const nameValue = nameField && nameField.value ? nameField.value.trim() : '';
+        const descriptionValue = descriptionField && descriptionField.value ? descriptionField.value.trim() : '';
         const storeValue = (storeField && storeField.value ? storeField.value : '').trim();
         const storeNames = storeValue ? storeValue.split(',').map((part) => part.trim()).filter(Boolean) : [];
         const selectedStrategies = getSelectedStrategyData();
         const payload = {
-          name: storeNames.length ? 'Store exclusion' : 'Global exclusion',
-          description: 'Manual exclusion generated from the Strategies page.',
-          exclusion_id: 'temp-' + Date.now(),
+          name: nameValue || (storeNames.length ? 'Store exclusion' : 'Global exclusion'),
+          description: descriptionValue || 'Manual exclusion generated from the Strategies page.',
+          exclusion_id: createUuid(),
           created_at: new Date().toISOString(),
           dates: sortedDates,
           filters: {
