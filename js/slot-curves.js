@@ -392,9 +392,11 @@
               td.style.backgroundColor = color;                  // hard inline (wins)
               td.style.setProperty("--cell-color", color);       // for your CSS path
 
-              const label = `${formatPercent(v)} (scaled ${t.toFixed(2)})`;
-              td.title = `${day || "Unknown day"} ${interval || ""}: ${formatPercent(v)}`;
-              td.setAttribute("aria-label", `${day || "Unknown day"} ${interval || ""}: ${label}`);
+              const displayPct = `${v.toFixed(2)}%`; // v is already a percent (0..100)
+				const label = `${displayPct} (scaled ${t.toFixed(2)})`;
+				td.title = `${day || "Unknown day"} ${interval || ""}: ${displayPct}`;
+				td.setAttribute("aria-label", `${day || "Unknown day"} ${interval || ""}: ${label}`);
+
 
               // screen-reader text
               const srOnly = document.createElement("span");
