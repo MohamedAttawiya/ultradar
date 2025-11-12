@@ -15,6 +15,7 @@
     els.downloadBtn = document.getElementById('orderForecastDownload');
     els.status = document.getElementById('orderForecastMessage');
     els.tableWrap = document.getElementById('orderForecastTableWrap');
+    els.table = document.getElementById('orderForecastTable');
     els.tableHead = document.querySelector('#orderForecastTable thead');
     els.tableBody = document.querySelector('#orderForecastTable tbody');
     els.form = document.getElementById('orderForecastForm');
@@ -199,6 +200,14 @@
       });
       els.tableBody.appendChild(tr);
     });
+
+    const columnCount = Math.max(1, columns.length);
+    if (els.table) {
+      els.table.style.setProperty('--column-count', columnCount);
+    }
+    if (els.tableWrap) {
+      els.tableWrap.style.setProperty('--column-count', columnCount);
+    }
 
     els.tableWrap.hidden = false;
   }
