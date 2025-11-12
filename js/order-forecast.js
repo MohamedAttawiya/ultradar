@@ -9,16 +9,20 @@
   let latestForecast = null;
 
   const els = {};
+  const DEFAULT_FILENAME_TEXT = 'No file selected';
 
   document.addEventListener('DOMContentLoaded', () => {
     els.refreshBtn = document.getElementById('orderForecastRefresh');
     els.downloadBtn = document.getElementById('orderForecastDownload');
     els.status = document.getElementById('orderForecastMessage');
     els.tableWrap = document.getElementById('orderForecastTableWrap');
+    els.table = document.getElementById('orderForecastTable');
     els.tableHead = document.querySelector('#orderForecastTable thead');
     els.tableBody = document.querySelector('#orderForecastTable tbody');
     els.form = document.getElementById('orderForecastForm');
     els.fileInput = document.getElementById('orderForecastFile');
+    els.fileName = document.getElementById('orderForecastFilename');
+    els.fileLabel = document.querySelector('.order-forecast-upload__file');
 
     if (!els.refreshBtn || !els.status || !els.tableWrap) {
       return;
@@ -36,6 +40,14 @@
       els.form.addEventListener('submit', handleUploadSubmit);
     }
 
+    if (els.fileInput) {
+      els.fileInput.addEventListener('change', () => {
+        const file = els.fileInput.files && els.fileInput.files[0];
+        updateFileNameDisplay(file ? file.name : null);
+      });
+    }
+
+    updateFileNameDisplay(null);
     loadLatestForecast();
   });
 
@@ -59,10 +71,17 @@
   function toggleLoading(isLoading) {
     if (els.refreshBtn) {
       els.refreshBtn.disabled = isLoading;
+      els.refreshBtn.classList.toggle('is-busy', isLoading);
     }
     if (els.form) {
       const submit = els.form.querySelector('button[type="submit"]');
       if (submit) submit.disabled = isLoading;
+    }
+    if (els.fileInput) {
+      els.fileInput.disabled = isLoading;
+    }
+    if (els.fileLabel) {
+      els.fileLabel.classList.toggle('is-disabled', isLoading);
     }
   }
 
@@ -128,6 +147,7 @@
       if (els.fileInput) {
         els.fileInput.value = '';
       }
+      updateFileNameDisplay(null);
     }
   }
 
@@ -165,6 +185,17 @@
     }
   }
 
+  function updateFileNameDisplay(name) {
+    if (!els.fileName) return;
+    if (name) {
+      els.fileName.textContent = name;
+      delete els.fileName.dataset.empty;
+    } else {
+      els.fileName.textContent = DEFAULT_FILENAME_TEXT;
+      els.fileName.dataset.empty = 'true';
+    }
+  }
+
   function renderTable(columns, rows) {
     if (!els.tableHead || !els.tableBody || !els.tableWrap) return;
     els.tableHead.textContent = '';
@@ -199,6 +230,14 @@
       });
       els.tableBody.appendChild(tr);
     });
+
+    const columnCount = Math.max(1, columns.length);
+    if (els.table) {
+      els.table.style.setProperty('--column-count', columnCount);
+    }
+    if (els.tableWrap) {
+      els.tableWrap.style.setProperty('--column-count', columnCount);
+    }
 
     els.tableWrap.hidden = false;
   }
