@@ -27,49 +27,53 @@
     </section>
 
     <section class="panel order-forecast-shell" aria-labelledby="forecastWorkspaceTitle">
-      <div class="order-forecast-shell__intro">
-        <h2 id="forecastWorkspaceTitle">Weekly forecast workspace</h2>
-        <p class="muted">Upload the latest file and instantly review the generated matrix.</p>
-      </div>
+      <header class="order-forecast-shell__header">
+        <div class="order-forecast-shell__intro">
+          <h2 id="forecastWorkspaceTitle">Weekly forecast workspace</h2>
+          <p class="muted">Upload the latest file and instantly review the generated matrix.</p>
+        </div>
+      </header>
 
-      <div class="order-forecast-layout">
-        <section class="panel order-forecast-card" aria-labelledby="forecastUploadTitle">
-          <div class="panel__intro">
-            <h3 id="forecastUploadTitle">Upload weekly forecast</h3>
-            <p class="muted">Accepts CSV exports that follow the weekly totals schema.</p>
-          </div>
-
-          <form id="orderForecastForm" class="controls" novalidate>
-            <div class="control">
-              <label class="control__label" for="orderForecastFile">Weekly forecast CSV</label>
-              <input class="control__input" type="file" id="orderForecastFile" accept=".csv" required />
+      <div class="order-forecast-shell__body">
+        <div class="order-forecast-layout">
+          <section class="panel order-forecast-card" aria-labelledby="forecastUploadTitle">
+            <div class="panel__intro">
+              <h3 id="forecastUploadTitle">Upload weekly forecast</h3>
+              <p class="muted">Accepts CSV exports that follow the weekly totals schema.</p>
             </div>
-            <button class="btn" type="submit">Upload forecast</button>
-          </form>
-        </section>
 
-        <section class="panel order-forecast-card order-forecast-card--viewer" aria-labelledby="forecastViewerTitle">
-          <div class="panel__intro">
-            <h3 id="forecastViewerTitle">Latest weekly forecast</h3>
-            <p class="muted">Reload to fetch the live dataset or download the JSON snapshot.</p>
-          </div>
+            <form id="orderForecastForm" class="controls" novalidate>
+              <div class="control">
+                <label class="control__label" for="orderForecastFile">Weekly forecast CSV</label>
+                <input class="control__input" type="file" id="orderForecastFile" accept=".csv" required />
+              </div>
+              <button class="btn" type="submit">Upload forecast</button>
+            </form>
+          </section>
 
-          <div class="cta-row">
-            <button class="btn" type="button" id="orderForecastRefresh">Reload</button>
-            <button class="btn btn--secondary" type="button" id="orderForecastDownload" hidden>
-              Download JSON
-            </button>
-          </div>
+          <section class="panel order-forecast-card order-forecast-card--viewer" aria-labelledby="forecastViewerTitle">
+            <div class="panel__intro">
+              <h3 id="forecastViewerTitle">Latest weekly forecast</h3>
+              <p class="muted">Reload to fetch the live dataset or download the JSON snapshot.</p>
+            </div>
 
-          <p class="status-message" id="orderForecastMessage" role="status" aria-live="polite"></p>
+            <div class="cta-row">
+              <button class="btn" type="button" id="orderForecastRefresh">Reload</button>
+              <button class="btn btn--secondary" type="button" id="orderForecastDownload" hidden>
+                Download JSON
+              </button>
+            </div>
 
-          <div id="orderForecastTableWrap" class="table-wrap order-forecast-table-wrap" hidden>
-            <table class="table order-forecast-table" id="orderForecastTable">
-              <thead></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </section>
+            <p class="status-message" id="orderForecastMessage" role="status" aria-live="polite"></p>
+
+            <div id="orderForecastTableWrap" class="table-wrap order-forecast-table-wrap" hidden>
+              <table class="table order-forecast-table" id="orderForecastTable">
+                <thead></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
       </div>
     </section>
   </main>

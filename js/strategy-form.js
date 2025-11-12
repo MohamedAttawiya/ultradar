@@ -459,8 +459,16 @@
 
       // Show where it was stored
       const pre = document.getElementById("ud-json-pre");
-      if (pre && data?.bucket && data?.key) {
-        pre.textContent += `\n\n// Uploaded to: s3://${data.bucket}/${data.key}\n// ETag: ${data.etag || "n/a"}`;
+      if (pre) {
+        if (data?.bucket && data?.key) {
+          pre.textContent += `\n\n// Uploaded to: s3://${data.bucket}/${data.key}\n// ETag: ${data.etag || "n/a"}`;
+        }
+        if (data?.version != null) {
+          pre.textContent += `\n// Assigned version: ${data.version}`;
+        }
+        if (data?.modeResolved) {
+          pre.textContent += `\n// Mode resolved by API: ${data.modeResolved}`;
+        }
       }
 
     } catch (e) {
@@ -1243,6 +1251,7 @@
 
     // Build JSON with requested schema
     const out = {
+      "mode": state.mode === 'edit' ? 'edit' : 'create',
       "strategy_id": fId.value.trim(),
       "name": fName.value.trim(),
       "description": fDesc?.value ?? "",
