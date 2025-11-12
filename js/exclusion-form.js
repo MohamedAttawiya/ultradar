@@ -1,9 +1,13 @@
 (function () {
   const Strategies = window.UltradarStrategies || {};
-  const API_BASE = Strategies.API_BASE || "https://zp97gyooxk.execute-api.eu-central-1.amazonaws.com";
-  const STRATEGY_CATALOG_URL = `${API_BASE}/strategies`;
-  const EXCLUSIONS_URL = `${API_BASE}/exclusions?prefix=exclusions/`;
-  const CREATE_EXCLUSION_URL = `${API_BASE}/exclusions`;
+  const apiConfig = window.UltradarApi;
+  if (!apiConfig) {
+    console.error('Ultradar API configuration is missing. Exclusion builder cannot load data.');
+    return;
+  }
+  const STRATEGY_CATALOG_URL = apiConfig.endpoint('strategies');
+  const EXCLUSIONS_URL = apiConfig.endpoint('exclusionsList');
+  const CREATE_EXCLUSION_URL = apiConfig.endpoint('exclusions');
   const EXCLUSIONS_VIEW_SELECTOR = '.strategy-view[data-view="exclusions"]';
   const EXCLUSION_LIST_ID = 'exclusion-list';
 

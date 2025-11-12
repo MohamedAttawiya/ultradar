@@ -1,5 +1,11 @@
 // strategies.js — Ultradar Strategies (browse + mount create form)
 (function () {
+  const apiConfig = window.UltradarApi;
+  if (!apiConfig) {
+    console.error('Ultradar API configuration is missing. Strategies view cannot load data.');
+    return;
+  }
+
   const $  = (s, r=document) => r.querySelector(s);
   const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
 
@@ -8,8 +14,8 @@
   const VIEWS  = LINKS.map(a => a.dataset.view);
   const DEFAULT = VIEWS[0] || 'edit';
 
-  const API_BASE = "https://zp97gyooxk.execute-api.eu-central-1.amazonaws.com";
-  const STRATEGIES_URL = `${API_BASE}/strategies?prefix=strategies/`;
+  const API_BASE = apiConfig.base;
+  const STRATEGIES_URL = apiConfig.endpoint('strategiesList');
 
   const EDIT_VIEW_SELECTOR   = '.strategy-view[data-view="edit"]';
   const CREATE_VIEW_SELECTOR = '.strategy-view[data-view="create"]';
@@ -438,7 +444,7 @@ li.innerHTML = `
     }
 
     try {
-      const url = `${API_BASE}/strategy?key=${encodeURIComponent(key)}`;
+      const url = apiConfig.endpoint('strategy', key);
       const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
       const text = await res.text();
       let data = {};
@@ -653,6 +659,7 @@ li.innerHTML = `
 
   window.UltradarStrategies = Object.assign(window.UltradarStrategies || {}, {
     API_BASE,
+    apiConfig,
     goToEditAndReload() {
       navigate('edit', { forceReload: true });
     },

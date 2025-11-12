@@ -40,9 +40,6 @@
   <div id="site-footer" role="contentinfo"></div>
 
   <script>
-    // API base for this page
-    window.ULTRADAR_API_BASE = "https://zp97gyooxk.execute-api.eu-central-1.amazonaws.com";
-
     // Fallback: define injectPartial/highlightActive if main.js isn't loaded yet
     const fallbackCountries = ['AE', 'SA', 'EG'];
     const fallbackDefaultCountry = fallbackCountries[0];
@@ -130,6 +127,7 @@
   </script>
 
   <!-- Shared scripts -->
+  <script src="../js/api-config.js"></script>
   <script src="../js/main.js"></script>
   <script>
     injectPartial('site-header', '../partials/header.html').then(() => {

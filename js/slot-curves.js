@@ -1,4 +1,10 @@
 (function () {
+  const apiConfig = window.UltradarApi;
+  if (!apiConfig) {
+    console.error('Ultradar API configuration is missing. Slot curve heatmaps cannot load data.');
+    return;
+  }
+
   // ===== Constants =====
   const DAY_ORDER = [
     "Sunday",
@@ -441,10 +447,9 @@
       if (!silent) setStatus(`Loading week ${sanitized} for ${country}…`, "loading");
 
       try {
-        const apiUrl = new URL("https://zp97gyooxk.execute-api.eu-central-1.amazonaws.com/by-week");
-        apiUrl.searchParams.set("weeknum", sanitized);
+        const apiUrl = apiConfig.endpoint('slotCurvesByWeek', sanitized);
 
-        const response = await fetch(apiUrl.toString(), {
+        const response = await fetch(apiUrl, {
           method: "GET",
           headers: { Accept: "application/json" },
           cache: "no-cache",

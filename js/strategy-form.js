@@ -25,6 +25,13 @@
     statusType: "info"
   };
 
+  const apiConfig = window.UltradarApi;
+  if (!apiConfig) {
+    console.error('Ultradar API configuration is missing. Strategy form cannot submit data.');
+    return;
+  }
+  const STRATEGIES_ENDPOINT = apiConfig.endpoint('strategies');
+
   ns.mount = function (hostEl) {
     if (!hostEl) return;
     hostEl.innerHTML = template();
@@ -391,7 +398,6 @@
 
   // Reference modal and footer
   const modal = document.getElementById("ud-json-modal");
-  const API_BASE = "https://zp97gyooxk.execute-api.eu-central-1.amazonaws.com";
   if (!modal) return;
   const footer = modal.querySelector("div[style*='border-top']") || modal.querySelector("div:last-child");
 
@@ -417,7 +423,7 @@
 
     try {
       // POST to your same API base (Lambda handles POST /strategies)
-      const res = await fetch(`${API_BASE}/strategies`, {
+      const res = await fetch(STRATEGIES_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(result.json)

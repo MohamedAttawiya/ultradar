@@ -1,6 +1,10 @@
 (() => {
-  const API_BASE = 'https://zp97gyooxk.execute-api.eu-central-1.amazonaws.com';
-  const ORDER_FORECAST_ENDPOINT = `${API_BASE}/order-forecast`;
+  const apiConfig = window.UltradarApi;
+  if (!apiConfig) {
+    console.error('Ultradar API configuration is missing. Order forecast view cannot load data.');
+    return;
+  }
+  const ORDER_FORECAST_ENDPOINT = apiConfig.endpoint('orderForecast');
 
   let latestForecast = null;
 
