@@ -21,6 +21,7 @@
     pendingPayload: null,
     pendingStatus: null,
     pendingDisabled: null,
+    pendingIdentityLock: null,
     statusMessage: "",
     statusType: "info"
   };
@@ -123,6 +124,8 @@
       .pill, .pill-textarea, select.pill{ border-radius:9999px; padding:8px 12px; border:1px solid var(--neutral); background:#fff; transition:border-color .12s, box-shadow .12s; }
       .pill-textarea{ border-radius:16px; padding:10px 12px; min-height:72px; resize:vertical; width:100%; }
       .pill:focus, .pill-textarea:focus, select.pill:focus{ border-color:var(--brand); outline:none; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+      .pill[readonly], .pill.pill--readonly{ background:#f1f5f9; color:var(--muted); cursor:not-allowed; border-color:var(--neutral); }
+      .pill[readonly]:focus{ border-color:var(--neutral); box-shadow:none; }
       .pill.invalid{ border-color:var(--error); box-shadow:0 0 0 2px rgba(220,38,38,.3); }
 
       /* Toggles */
@@ -151,6 +154,7 @@
       #ud-edit-banner { display:none; align-items:flex-start; gap:8px; background:#ecfdf5; border:1px solid #34d399; color:#047857; border-radius:10px; padding:8px 10px; margin-top:10px; }
       #ud-edit-banner .icon { font-size:14px; line-height:1; }
       #ud-edit-target { font-weight:700; }
+      #ud-identity-hint { margin:6px 0 0; font-size:12px; color:var(--muted); display:none; }
       .btn-secondary { background:#fff; color:#475569; border:1px solid var(--neutral); border-radius:10px; padding:10px 16px; font-weight:600; cursor:pointer; }
       #ud-form-status { font-size:13px; margin:10px 0 0; display:none; }
       #ud-strategy-form.ud-form-disabled { opacity:0.65; }
@@ -173,6 +177,7 @@
         <div class="fieldset">
           <label class="inline"><div>Strategy ID</div><input class="pill" name="strategy_id" placeholder="Auto-generated UUID" /></label>
           <label class="inline"><div>Name</div><input class="pill" name="name" maxlength="256" placeholder="Strategy name" /></label>
+          <p id="ud-identity-hint">Strategy ID and name are locked when editing an existing strategy.</p>
           <div style="margin-top:10px;">
             <div style="font-weight:600; margin-bottom:4px;">Description</div>
             <textarea class="pill-textarea" name="description" placeholder="Describe strategy…"></textarea>
@@ -454,8 +459,16 @@
 
       // Show where it was stored
       const pre = document.getElementById("ud-json-pre");
-      if (pre && data?.bucket && data?.key) {
-        pre.textContent += `\n\n// Uploaded to: s3://${data.bucket}/${data.key}\n// ETag: ${data.etag || "n/a"}`;
+      if (pre) {
+        if (data?.bucket && data?.key) {
+          pre.textContent += `\n\n// Uploaded to: s3://${data.bucket}/${data.key}\n// ETag: ${data.etag || "n/a"}`;
+        }
+        if (data?.version != null) {
+          pre.textContent += `\n// Assigned version: ${data.version}`;
+        }
+        if (data?.modeResolved) {
+          pre.textContent += `\n// Mode resolved by API: ${data.modeResolved}`;
+        }
       }
 
     } catch (e) {
@@ -475,13 +488,14 @@
 
   // ---------- Override rows ----------
   function setMode(mode, payload) {
+    const normalizedMode = mode === "edit" ? "edit" : "create";
     if (!state.form) {
-      state.pendingMode = mode || "create";
+      state.pendingMode = normalizedMode;
       state.pendingPayload = cloneData(payload);
+      state.pendingIdentityLock = normalizedMode === "edit";
       return;
     }
 
-    const normalizedMode = mode === "edit" ? "edit" : "create";
     state.mode = normalizedMode;
     state.original = normalizedMode === "edit" && payload ? cloneData(payload) : null;
     state.originalS3 = state.original?.__s3 || null;
@@ -498,6 +512,7 @@
     }
 
     updateEditBanner();
+    lockIdentityFields(normalizedMode === "edit");
 
     const heading = form.querySelector("h4");
     if (heading) heading.textContent = normalizedMode === "edit" ? "Edit Strategy" : "Create Strategy";
@@ -630,6 +645,35 @@
       state.editBanner.style.display = "none";
       if (state.editTarget) state.editTarget.textContent = "";
     }
+  }
+
+  function lockIdentityFields(lock) {
+    if (!state.form) {
+      state.pendingIdentityLock = lock;
+      return;
+    }
+
+    const form = state.form;
+    const readonly = !!lock;
+    const fields = [form.elements?.strategy_id, form.elements?.name];
+    fields.forEach((field) => {
+      if (!field) return;
+      field.readOnly = readonly;
+      if (readonly) {
+        field.setAttribute("aria-readonly", "true");
+        field.classList.add("pill--readonly");
+      } else {
+        field.removeAttribute("aria-readonly");
+        field.classList.remove("pill--readonly");
+      }
+    });
+
+    const hint = form.querySelector("#ud-identity-hint");
+    if (hint) {
+      hint.style.display = readonly ? "block" : "none";
+    }
+
+    state.pendingIdentityLock = null;
   }
 
   function cloneData(obj) {
@@ -1207,6 +1251,7 @@
 
     // Build JSON with requested schema
     const out = {
+      "mode": state.mode === 'edit' ? 'edit' : 'create',
       "strategy_id": fId.value.trim(),
       "name": fName.value.trim(),
       "description": fDesc?.value ?? "",
