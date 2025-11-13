@@ -3,75 +3,35 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ultradar — S&amp;OP</title>
+  <title>Ultradar — DA Forecast</title>
   <link rel="stylesheet" href="../css/styles.css" />
 </head>
 <body>
-  <!-- Shared Header (injected) -->
   <div id="site-header" role="banner"></div>
 
-  <!-- S&OP specific quick links -->
-  <nav class="subnav subnav--sop" aria-label="S&amp;OP quick links">
-    <div class="subnav__inner">
-      <a class="subnav__link is-active" href="../pages/marketplace-performance.html">Marketplace Performance</a>
-      <a class="subnav__link" href="../pages/store-performance.html">Store Performance</a>
-      <a class="subnav__link" href="../pages/slot-curves.html">Slot Curves</a>
-      <a class="subnav__link" href="../pages/strategies.html">Strategies</a>
-      <a class="subnav__link" href="../pages/order-forecast.html">Order Forecast</a>
-      <a class="subnav__link" href="../pages/da-forecast.html">DA Forecast</a>
-    </div>
-  </nav>
 
   <main class="container">
     <section class="hero">
-      <h1>S&amp;OP Control Tower</h1>
+      <h1>Upload Fresh Slot Data</h1>
       <p class="muted">
-        A single landing page for Supply Chain planners to sense demand, align fulfillment,
-        and stay ahead of last-mile constraints.
+        Upload to S3 Fresh Datacentral Data, to be automated later with a Job.
       </p>
       <div class="cta-row">
-        <a class="btn" href="../pages/week-of-day.html">Review Weekly Patterns</a>
-        <a class="btn btn--secondary" href="../pages/slot-of-day.html">Dive into Time Slots</a>
+        <a class="btn" href="../pages/marketplace-performance.html">Back to S&amp;OP</a>
       </div>
     </section>
 
-    <section class="grid" style="margin-top:32px;">
-      <a class="tile" href="../pages/week-of-day.html">
-        <div class="tile__head">Demand Rhythm</div>
-        <p class="tile__body">Spot weekly shifts in order curves before they create service risk.</p>
-      </a>
-      <a class="tile" href="../pages/slot-of-day.html">
-        <div class="tile__head">Intra-day Balance</div>
-        <p class="tile__body">Compare slot-level share to align supply, labor, and delivery windows.</p>
-      </a>
-      <a class="tile" href="../pages/last-mile.html">
-        <div class="tile__head">Last Mile Readiness</div>
-        <p class="tile__body">Track DSP capacity, OTIF performance, and surge triggers.</p>
-      </a>
-      <a class="tile" href="../pages/upload.html">
-        <div class="tile__head">Data Ingest</div>
-        <p class="tile__body">Push CSVs or metrics from field teams and sync the shared view.</p>
-      </a>
-    </section>
-
-    <section class="panel" style="margin-top:34px;">
-      <h2 style="margin-top:0;">Weekly Operating Cadence</h2>
-      <p class="muted" style="margin-bottom:12px;">
-        Keep the S&amp;OP drumbeat tight by reviewing these checkpoints with your cross-functional partners.
+    <section class="panel" style="margin-top:32px;">
+      <h2 style="margin-top:0;">Coming Soon</h2>
+      <p class="muted">
+        Coming soon upload implementation.
       </p>
-      <ul>
-        <li><strong>Monday</strong> — Align demand signals with Retail, Surface, and Delivery for any new promos.</li>
-        <li><strong>Wednesday</strong> — Lock supply response: FC inventory health, labor posture, and carrier coverage.</li>
-        <li><strong>Friday</strong> — Run readiness huddles for weekend peaks and publish mitigation playbooks.</li>
-      </ul>
     </section>
   </main>
 
-  <!-- Shared Footer (injected) -->
   <div id="site-footer" role="contentinfo"></div>
 
   <script>
-    // Fallbacks if main.js is deferred or blocked
     const fallbackCountries = ['AE', 'SA', 'EG'];
     const fallbackDefaultCountry = fallbackCountries[0];
 
@@ -164,7 +124,7 @@
   <script src="../js/main.js"></script>
   <script>
     injectPartial('site-header', '../partials/header.html').then(() => {
-      highlightActive('../pages/marketplace-performance.html');
+      highlightActive('../pages/upload.html');
     });
     injectPartial('site-footer', '../partials/footer.html');
   </script>

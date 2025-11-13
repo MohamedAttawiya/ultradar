@@ -3,23 +3,34 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ultradar — Week of Day</title>
+  <title>Ultradar — DA Forecast</title>
   <link rel="stylesheet" href="../css/styles.css" />
 </head>
 <body>
-  <!-- Shared Header (injected) -->
   <div id="site-header" role="banner"></div>
 
+
   <main class="container">
-    <h1>Week of Day</h1>
-    <p class="muted">Placeholder page. We’ll wire this to Athena/API next.</p>
+    <section class="hero">
+      <h1>Last Mile Central Hub</h1>
+      <p class="muted">
+        Will be used to action S&OP Forecast, still to be implemented.
+      <div class="cta-row">
+        <a class="btn" href="../pages/marketplace-performance.html">Back to S&amp;OP</a>
+      </div>
+    </section>
+
+    <section class="panel" style="margin-top:32px;">
+      <h2 style="margin-top:0;">Coming Soon</h2>
+      <p class="muted">
+        Coming soon awaiting implementation.
+      </p>
+    </section>
   </main>
 
-  <!-- Shared Footer (injected) -->
   <div id="site-footer" role="contentinfo"></div>
 
   <script>
-    // Fallbacks in case main.js hasn't loaded yet
     const fallbackCountries = ['AE', 'SA', 'EG'];
     const fallbackDefaultCountry = fallbackCountries[0];
 
@@ -112,7 +123,7 @@
   <script src="../js/main.js"></script>
   <script>
     injectPartial('site-header', '../partials/header.html').then(() => {
-      highlightActive('../pages/marketplace-performance.html');
+      highlightActive('../pages/last-mile.html');
     });
     injectPartial('site-footer', '../partials/footer.html');
   </script>
